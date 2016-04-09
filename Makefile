@@ -18,19 +18,20 @@ COMPILER_FLAGS= -g -Wno-deprecated-declarations
 INCLUDE= $(OPENGL_INC)
 LLDLIBS= $(OPENGL_LIB) -I ./libs/
 
-TARGETS = helloteapot
+TARGETS = sketching
 
 default : $(TARGETS)
-
-SRCS = helloteapot.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 
 %.o: %.cpp
 	$(CXX) -c -o $@ $(COMPILER_FLAGS)  $< $(INCLUDE)
 
-helloteapot: helloteapot.cpp
-	$(CXX) $(COMPILER_FLAGS) $(LLDLIBS) $^ -o $@ 
+sketching: sketching.cpp
+	$(CXX) $(COMPILER_FLAGS) $(LLDLIBS) $^ -o $@
+
+run:
+	./sketching
 
 clean:
 	rm -f *.o $(TARGETS) *~ .*.swp .*.swo
