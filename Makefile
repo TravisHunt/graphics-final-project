@@ -30,6 +30,9 @@ OBJS = $(SRCS:.cpp=.o)
 sketching: sketching.cpp
 	$(CXX) $(COMPILER_FLAGS) $(LLDLIBS) $^ -o $@
 
+run:
+	./sketching
+
 clean:
 	rm -f *.o $(TARGETS) *~ .*.swp .*.swo
 	rm -rf *.dSYM

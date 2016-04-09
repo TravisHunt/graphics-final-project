@@ -12,6 +12,9 @@
 #include <cmath>
 #include <vector>
 
+using std::vector;
+using std::pair;
+
 #define IMAGEWIDTH  500
 #define IMAGEHEIGHT 500
 #define RGBBLACK 0,0,0
@@ -21,8 +24,11 @@
 static int tracking = 0;
 float previousX, previousY;
 
-std::vector<std::pair<int, int> > stroke;
-std::vector<std::pair<int, int> > closing;
+/**
+* stroke
+* Vector of int tuples that represent the user stroke's vertices.
+*/
+vector<pair<int,int> > stroke;
 
 /**
  * inWindow
@@ -47,79 +53,46 @@ void mouseMotion(int x, int y) {
             glVertex2f(x, y);
         glEnd();
 
-        /* push vertex into vector */
+        // push vertex into vector
         stroke.push_back(std::make_pair(x, y));
 
-        /* draw line to scene */
+        // draw line to scene
         glFlush();
 
-        /* keep track of previous coordinates */
+        // keep track of previous coordinates
         previousX = x;
         previousY = y;
     }
 }
 
 /**
- * getMidpoint
- * Returns the (x,y) midpoint of the two vertices given, which is
- * calculated with the Midpoint formula ((x1+x2)/2, (y1+y2)/2)
- */
-std::pair<int,int> getMidpoint(std::pair<int,int>&v1, std::pair<int,int>&v2) {
-    int x = (v1.first  + v2.first ) / 2;
-    int y = (v1.second + v2.second) / 2;
-    return (std::make_pair(x, y));
-}
-
-/**
- * subdivide
- * Recursively calculates vertices needed to connect the start and end
- * point of a stroke when the user completes their stroke.
- */
-void subdivide(std::pair<int,int>&v1, std::pair<int,int>&v2) {
-    std::pair<int,int> mid;
-    int x = v2.first - v1.first, y = v2.second - v1.second;
-    int dist = sqrt(x*x + y*y);
-
-    /* if we need to subdivide again */
-    if (dist >= MIN_DIST) {
-        mid = getMidpoint(v1, v2);
-        subdivide(v1, mid);
-        closing.push_back(mid);
-        subdivide(mid, v2);
-    }
-}
-
-/**
  * generateClosingPoints
- * Uses the first and last vertices of a user stroke to create 
+ * Uses the first and last vertices of a user stroke to create
  * connecting vertices, via the Midpoint formula, to create a closed
  * planar polygon.
  */
 void generateClosingPoints() {
-    closing.clear();
-    closing.push_back(stroke.front());
-    subdivide(stroke.front(), stroke.back());
-    closing.push_back(stroke.back());
+    GLfloat t, delta, cx, cy;
 
-    glBegin(GL_POINTS);
-        for (int i = 0; i < closing.size(); i++) {
-            glVertex2f(closing[i].first, closing[i].second);
-        }
+    // interpolate vertices from Endpoint to Startpoint
+    pair<int,int> P0(stroke.back());
+    pair<int,int> P1(stroke.front());
+
+    // Linearly interpolate points
+    t = 0.0; delta = 0.01;
+    glBegin(GL_LINE_STRIP);
+    for (t = 0.0; t <= 1.0; t += delta) {
+        cx = (1.0 - t) * P0.first + t * P1.first;
+        cy = (P0.second + (P1.second - P0.second) *
+            ((cx - P0.first) / (P1.first - P0.first)));
+
+        // draw line between new point and last point
+        glVertex2f(cx, cy);
+        // add interpolated point to stroke
+        stroke.push_back(std::make_pair(cx, cy));
+    }
     glEnd();
-    glFlush();
-
-    std::cout << closing.size() << std::endl;
-}
-
-/**
- * drawLine
- * Draws a line between two given points 
- */
-void drawLine(std::pair<int,int>&v1, std::pair<int,int>&v2) {
-    glBegin(GL_LINES);
-        glVertex2f(v1.first, v1.second);
-        glVertex2f(v2.first, v2.second);
-    glEnd();
+    // push closing line to screen
     glFlush();
 }
 
@@ -138,12 +111,10 @@ void handleButtonPress(int button, int state, int x, int y) {
             previousX = x;
             previousY = y;
         }
-    } else { /* stroke complete */
+    } else { // stroke complete
         tracking = 0;
-
-        /* get start & end connecting vertices */
+        // get start & end connecting vertices
         generateClosingPoints();
-
         stroke.clear();
     }
 }
@@ -156,6 +127,21 @@ void drawMouse(void) {
     glFlush();
 }
 
+/* clears the screen of any user strokes */
+void wipeCanvas(void) {
+    glClearColor(RGBGREY, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
+}
+
+void keyboard(unsigned char key, int x, int y) {
+    switch (key) {
+        case 27: // escape key
+            exit(0);
+            break;
+    }
+}
+
 int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
@@ -164,6 +150,7 @@ int main(int argc, char *argv[]) {
     glutDisplayFunc(drawMouse);
     glutMouseFunc(handleButtonPress);
     glutMotionFunc(mouseMotion);
+    glutKeyboardFunc(keyboard);
     gluOrtho2D(0, IMAGEWIDTH, 0, IMAGEHEIGHT);
 
     glutMainLoop();
