@@ -49,6 +49,7 @@ void wipeCanvas(void) {
 
 void resetStroke(void) {
     stroke.clear();
+    points_on_curve.clear();
     tracking  = 0;
     previousX = 0;
     previousY = 0;
@@ -75,6 +76,62 @@ void generateClosingPoints(void) {
     }
 }
 
+float sideLength(pair<int,int> a, pair<int,int> b) {
+	return sqrt(pow((a.first - b.second), 2) + pow((a.second - b.second), 2));
+}
+
+float calcAngle(float BA, float BC, float AC) {
+	return acos((pow(BA, 2) + pow(BC, 2) - pow(AC, 2))/(2 * BA * BC));
+}
+
+int findNextPoint(int i, int distance){
+	//base case, if the distance exceeds the bounds
+	if (i+distance > stroke.size() && distance % 2 == 0) {
+		return findNextPoint(i, distance/2);
+	//if the distance does not exceed the bounds but the distance cannot be divided by 2
+	} else if (distance % 2 != 0 && i+distance <= stroke.size()) {
+		return i+distance;
+	//if the distance cannot be divided by 2 and the distance exceeds bounds
+	} else if (distance % 2 != 0 && i+distance > stroke.size()) {
+		return stroke.size();
+	//if everything is okay
+	} else {
+		//get three points
+		pair<int,int> a = stroke[i];
+		pair<int,int> b = stroke[i+(distance/2)];
+		pair<int,int> c = stroke[i+distance];
+		//find distance between each point around triangle
+		float ba = sideLength(b, a);
+		float bc = sideLength(b, c);
+		float ac = sideLength(a, c);
+
+		//if the angle isnt what we want, try again with a shorter distance
+		if ((PI - calcAngle(ba, bc, ac)) > VERTEX_LIMIT) {
+			return findNextPoint(i, (distance/2));
+
+		//if it is what we want, return this distance
+		} else {
+			return i+distance;
+		}
+	}
+}
+
+void getOutsideEdges() {
+	//takes first point of stroke and puts it in vector
+	points_on_curve.push_back(stroke[0]);
+	//sets the counter variable
+	int count = 0;
+	//loop through each vertex in stroke
+	for (int i=0; i < stroke.size(); i = i+(count-i)) {
+		//find the next point for the curve
+		count = findNextPoint(i, DISTANCE_BETWEEN_POINTS);
+		//add to the vector
+		points_on_curve.push_back(stroke[count]);
+		std::cout << count << std::endl; //test code
+	}
+	return;
+}
+
 
 /************ MENU FUNCTIONS *****************/
 void createGLUTMenus(void) {
@@ -83,6 +140,7 @@ void createGLUTMenus(void) {
     glutAddMenuEntry("Clear Canvas", CLEAR);
     glutAddMenuEntry("Switch to 2D View", SWITCH_2D);
     glutAddMenuEntry("Switch to 3D View", SWITCH_3D);
+    glutAddMenuEntry("Show 2D Triangle Mesh", TRIANGULATE_2D);
 
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
@@ -97,6 +155,15 @@ void handleMenuEvents(int option) {
             break;
         case SWITCH_3D:
             // ...
+            break;
+        case TRIANGULATE_2D:
+            getOutsideEdges();
+            glBegin(GL_LINES);
+            for (it = points_on_curve.begin(); it != points_on_curve.end(); it++) {
+                glVertex2f(it->first, it->second);
+            }
+            glEnd();
+            glFlush();
         default:
             break;
     }
