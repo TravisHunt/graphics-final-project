@@ -1,56 +1,62 @@
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <GLUT/glut.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glut.h>
-#endif
+#include "sketching.h"
 
-#include <iostream>
-#include <cmath>
-#include <vector>
-#include <Eigen/Dense>
-#include "view.h"
+int main(int argc, char *argv[]) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 
-using std::vector;
-using std::pair;
+    imageWidth  = IMAGE_WIDTH;
+    imageHeight = IMAGE_HEIGHT;
 
-#define IMAGE_WIDTH  800
-#define IMAGE_HEIGHT 500
-#define RGBBLACK     0,0,0
-#define RGBGREY     .8,.8,.8
+    glutInitWindowSize(imageWidth, imageHeight);
+    glutCreateWindow("Sketching Interface");
+    glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-imageWidth)/2,
+                           (glutGet(GLUT_SCREEN_HEIGHT)-imageWidth)/2);
 
-//View view;
+    init();
 
-static int tracking;
-static int imageWidth, imageHeight;
-static int previousX, previousY;
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutMouseFunc(mouse);
+    glutMotionFunc(mouseMotion);
+    glutKeyboardFunc(keyboard);
 
-/**
-* stroke
-* Vector of int tuples that represent the user stroke's vertices.
-*/
-vector<pair<int,int> > stroke;
-vector<pair<int,int> >::iterator it;
+    glutMainLoop();
+    return 0;
+}
 
-/**
- * inWindow
- * Returns true if (x, y) is within the drawing window.
- * Returns false otherwise.
- */
+
+/********** FUNCTION IMPLEMENTATIONS *****************/
+
+void init(void) {
+    //view.setCOI(0, 0, 0); // set coi to origin
+    //view.setEyePos(1, 1, 1); // camera position
+    tracking = 0;
+    previousX = 0;
+    previousY = 0;
+
+    createGLUTMenus();
+}
+
 int inWindow(int x, int y) {
     return (x > 0 && x < imageWidth && y > 0 && y < imageHeight);
 }
 
-/**
- * generateClosingPoints
- * Uses the first and last vertices of a user stroke to create
- * connecting vertices, via the Midpoint formula, to create a closed
- * planar polygon.
- */
-void generateClosingPoints() {
+void wipeCanvas(void) {
+    glClearColor(RGBGREY, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
+}
+
+void resetStroke(void) {
+    stroke.clear();
+    tracking  = 0;
+    previousX = 0;
+    previousY = 0;
+    wipeCanvas();
+}
+
+
+void generateClosingPoints(void) {
     GLfloat t, delta, cx, cy;
 
     // interpolate vertices from Endpoint to Startpoint
@@ -69,35 +75,39 @@ void generateClosingPoints() {
     }
 }
 
-/* clears the screen of any user strokes */
-void wipeCanvas(void) {
-    glClearColor(RGBGREY, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glFlush();
+
+/************ MENU FUNCTIONS *****************/
+void createGLUTMenus(void) {
+    menu_2Dview = glutCreateMenu(handleMenuEvents);
+
+    glutAddMenuEntry("Clear Canvas", CLEAR);
+    glutAddMenuEntry("Switch to 2D View", SWITCH_2D);
+    glutAddMenuEntry("Switch to 3D View", SWITCH_3D);
+
+    glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
-/* Destroys stored stroke vertices and resets the canvas */
-void resetStroke(void) {
-    stroke.clear();
-    tracking  = 0;
-    previousX = 0;
-    previousY = 0;
-    wipeCanvas();
+void handleMenuEvents(int option) {
+    switch(option) {
+        case CLEAR:
+            resetStroke();
+            break;
+        case SWITCH_2D:
+            // ...
+            break;
+        case SWITCH_3D:
+            // ...
+        default:
+            break;
+    }
 }
 
-void init(void) {
-    //view.setCOI(0, 0, 0); // set coi to origin
-    //view.setEyePos(1, 1, 1); // camera position
-    tracking = 0;
-    previousX = 0;
-    previousY = 0;
+void destroyGLUTMenus(void) {
+    glutDestroyMenu(menu_2Dview);
 }
 
-/*============= GLUT CALLBACK FUNCTIONS */
 
-/**
-* display
-*/
+/******** GLUT CALLBACKS **********/
 void display(void) {
     glClearColor(RGBGREY, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -113,9 +123,6 @@ void display(void) {
     glFlush();
 }
 
-/**
-* reshape
-*/
 void reshape(int w, int h) {
     int deltaW  = (w - imageWidth)  >> 1;
     int deltaH  = (h - imageHeight) >> 1;
@@ -148,10 +155,6 @@ void reshape(int w, int h) {
     glLoadIdentity();
 }
 
-/**
- * mouse
- * Updates mouse tracking data when a stroke is being drawn.
- */
 void mouse(int button, int state, int x, int y) {
     y = imageHeight - y;
 
@@ -179,11 +182,6 @@ void mouse(int button, int state, int x, int y) {
     }
 }
 
-/**
- * mouseMotion
- * Tracks the user's mouse when drawing a stroke, pushes the current
- * vertex into the stroke vector, and draws the new line segment.
- */
 void mouseMotion(int x, int y) {
     y = imageHeight - y;
 
@@ -205,37 +203,11 @@ void mouseMotion(int x, int y) {
     }
 }
 
-/**
-* keyboard
-*/
 void keyboard(unsigned char key, int x, int y) {
     switch (key) {
         case 27: // escape key
+            destroyGLUTMenus();
             exit(0);
             break;
     }
-}
-
-int main(int argc, char *argv[]) {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-
-    imageWidth  = IMAGE_WIDTH;
-    imageHeight = IMAGE_HEIGHT;
-
-    glutInitWindowSize(imageWidth, imageHeight);
-    glutCreateWindow("Sketching Interface");
-    glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-imageWidth)/2,
-                           (glutGet(GLUT_SCREEN_HEIGHT)-imageWidth)/2);
-
-    init();
-
-    glutDisplayFunc(display);
-    glutReshapeFunc(reshape);
-    glutMouseFunc(mouse);
-    glutMotionFunc(mouseMotion);
-    glutKeyboardFunc(keyboard);
-
-    glutMainLoop();
-    return 0;
 }
