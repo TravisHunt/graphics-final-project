@@ -14,28 +14,26 @@
 #include <Eigen/Dense>
 #include "view.h"
 
-using std::cout;
-using std::endl;
 using std::vector;
 using std::pair;
 
-#define IMAGEWIDTH  500
-#define IMAGEHEIGHT 500
-#define RGBBLACK 0,0,0
-#define RGBGREY  .8,.8,.8
-#define MIN_DIST 6
+#define IMAGE_WIDTH  800
+#define IMAGE_HEIGHT 500
+#define RGBBLACK     0,0,0
+#define RGBGREY     .8,.8,.8
 
-View view;
+//View view;
 
 static int tracking;
 static int imageWidth, imageHeight;
-static float previousX, previousY;
+static int previousX, previousY;
 
 /**
 * stroke
 * Vector of int tuples that represent the user stroke's vertices.
 */
 vector<pair<int,int> > stroke;
+vector<pair<int,int> >::iterator it;
 
 /**
  * inWindow
@@ -61,20 +59,14 @@ void generateClosingPoints() {
 
     // Linearly interpolate points
     t = 0.0; delta = 0.01;
-    glBegin(GL_LINE_STRIP);
     for (t = 0.0; t <= 1.0; t += delta) {
         cx = (1.0 - t) * P0.first + t * P1.first;
         cy = (P0.second + (P1.second - P0.second) *
             ((cx - P0.first) / (P1.first - P0.first)));
 
-        // draw line between new point and last point
-        glVertex2f(cx, cy);
         // add interpolated point to stroke
         stroke.push_back(std::make_pair(cx, cy));
     }
-    glEnd();
-    // push closing line to screen
-    glFlush();
 }
 
 /* clears the screen of any user strokes */
@@ -84,12 +76,21 @@ void wipeCanvas(void) {
     glFlush();
 }
 
+/* Destroys stored stroke vertices and resets the canvas */
+void resetStroke(void) {
+    stroke.clear();
+    tracking  = 0;
+    previousX = 0;
+    previousY = 0;
+    wipeCanvas();
+}
+
 void init(void) {
-    view.setCOI(0, 0, 0); // set coi to origin
-    view.setEyePos(1, 1, 1); // camera position
+    //view.setCOI(0, 0, 0); // set coi to origin
+    //view.setEyePos(1, 1, 1); // camera position
     tracking = 0;
-    previousX = 0.0;
-    previousY = 0.0;
+    previousX = 0;
+    previousY = 0;
 }
 
 /*============= GLUT CALLBACK FUNCTIONS */
@@ -102,6 +103,13 @@ void display(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(RGBBLACK);
 
+    // Draw user stroke's vertices
+    glBegin(GL_LINE_LOOP);
+    for (it = stroke.begin(); it != stroke.end(); it++) {
+        glVertex2f(it->first, it->second);
+    }
+    glEnd();
+
     glFlush();
 }
 
@@ -109,8 +117,24 @@ void display(void) {
 * reshape
 */
 void reshape(int w, int h) {
-    imageWidth = w;
+    int deltaW  = (w - imageWidth)  >> 1;
+    int deltaH  = (h - imageHeight) >> 1;
+    imageWidth  = w;
     imageHeight = h;
+
+    // Force window to maintain minimum size
+    if (w < IMAGE_WIDTH && h < IMAGE_HEIGHT)
+        glutReshapeWindow(IMAGE_WIDTH, IMAGE_HEIGHT);
+    else if (w < IMAGE_WIDTH)
+        glutReshapeWindow(IMAGE_WIDTH, h);
+    else if (h < IMAGE_HEIGHT)
+        glutReshapeWindow(w, IMAGE_HEIGHT);
+
+    // Update stroke vertices to keep stroke centered
+    for (it = stroke.begin(); it != stroke.end(); it++) {
+        it->first  += deltaW;
+        it->second += deltaH;
+    }
 
     // reset viewport to the dimensions
     glViewport(0, 0, w, h);
@@ -135,21 +159,23 @@ void mouse(int button, int state, int x, int y) {
 
     if (state == GLUT_DOWN) {
         if (inWindow(x, y)) {
-            tracking = 1;
+            // New stroke
+            if (!tracking) {
+                resetStroke();
+                tracking = 1;
+            }
+            // Update coordinates
             previousX = x;
             previousY = y;
-        } else {
-            tracking = 0;
-            previousX = 0.0;
-            previousY = 0.0;
         }
     } else { // stroke complete
         tracking = 0;
-        previousX = 0.0;
-        previousY = 0.0;
+        previousX = 0;
+        previousY = 0;
         // get start & end connecting vertices
         generateClosingPoints();
-        stroke.clear();
+        // redraw stroke
+        glutPostRedisplay();
     }
 }
 
@@ -162,13 +188,13 @@ void mouseMotion(int x, int y) {
     y = imageHeight - y;
 
     if (tracking && inWindow(x, y)) {
+        // push vertex into vector
+        stroke.push_back(std::make_pair(x, y));
+
         glBegin(GL_LINES);
             glVertex2f(previousX, previousY);
             glVertex2f(x, y);
         glEnd();
-
-        // push vertex into vector
-        stroke.push_back(std::make_pair(x, y));
 
         // draw line to scene
         glFlush();
@@ -194,11 +220,13 @@ int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 
-    imageWidth  = IMAGEWIDTH;
-    imageHeight = IMAGEHEIGHT;
+    imageWidth  = IMAGE_WIDTH;
+    imageHeight = IMAGE_HEIGHT;
 
     glutInitWindowSize(imageWidth, imageHeight);
-    glutCreateWindow("Sketch Interface");
+    glutCreateWindow("Sketching Interface");
+    glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-imageWidth)/2,
+                           (glutGet(GLUT_SCREEN_HEIGHT)-imageWidth)/2);
 
     init();
 
