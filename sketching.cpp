@@ -11,7 +11,11 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <Eigen/Dense>
+#include "view.h"
 
+using std::cout;
+using std::endl;
 using std::vector;
 using std::pair;
 
@@ -21,8 +25,11 @@ using std::pair;
 #define RGBGREY  .8,.8,.8
 #define MIN_DIST 6
 
-static int tracking = 0;
-float previousX, previousY;
+View view;
+
+static int tracking;
+static int imageWidth, imageHeight;
+static float previousX, previousY;
 
 /**
 * stroke
@@ -36,33 +43,7 @@ vector<pair<int,int> > stroke;
  * Returns false otherwise.
  */
 int inWindow(int x, int y) {
-    return (x > 0 && x < IMAGEWIDTH && y > 0 && y < IMAGEHEIGHT);
-}
-
-/**
- * mouseMotion
- * Tracks the user's mouse when drawing a stroke, pushes the current
- * vertex into the stroke vector, and draws the new line segment.
- */
-void mouseMotion(int x, int y) {
-    y = IMAGEHEIGHT - y;
-
-    if (tracking && inWindow(x, y)) {
-        glBegin(GL_LINES);
-            glVertex2f(previousX, previousY);
-            glVertex2f(x, y);
-        glEnd();
-
-        // push vertex into vector
-        stroke.push_back(std::make_pair(x, y));
-
-        // draw line to scene
-        glFlush();
-
-        // keep track of previous coordinates
-        previousX = x;
-        previousY = y;
-    }
+    return (x > 0 && x < imageWidth && y > 0 && y < imageHeight);
 }
 
 /**
@@ -96,12 +77,59 @@ void generateClosingPoints() {
     glFlush();
 }
 
+/* clears the screen of any user strokes */
+void wipeCanvas(void) {
+    glClearColor(RGBGREY, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
+}
+
+void init(void) {
+    view.setCOI(0, 0, 0); // set coi to origin
+    view.setEyePos(1, 1, 1); // camera position
+    tracking = 0;
+    previousX = 0.0;
+    previousY = 0.0;
+}
+
+/*============= GLUT CALLBACK FUNCTIONS */
+
 /**
- * handleButtonPress
+* display
+*/
+void display(void) {
+    glClearColor(RGBGREY, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor3f(RGBBLACK);
+
+    glFlush();
+}
+
+/**
+* reshape
+*/
+void reshape(int w, int h) {
+    imageWidth = w;
+    imageHeight = h;
+
+    // reset viewport to the dimensions
+    glViewport(0, 0, w, h);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluOrtho2D(0, imageWidth, 0, imageHeight);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+/**
+ * mouse
  * Updates mouse tracking data when a stroke is being drawn.
  */
-void handleButtonPress(int button, int state, int x, int y) {
-    y = IMAGEHEIGHT - y;
+void mouse(int button, int state, int x, int y) {
+    y = imageHeight - y;
 
     if (button != GLUT_LEFT_BUTTON) return;
 
@@ -110,30 +138,50 @@ void handleButtonPress(int button, int state, int x, int y) {
             tracking = 1;
             previousX = x;
             previousY = y;
+        } else {
+            tracking = 0;
+            previousX = 0.0;
+            previousY = 0.0;
         }
     } else { // stroke complete
         tracking = 0;
+        previousX = 0.0;
+        previousY = 0.0;
         // get start & end connecting vertices
         generateClosingPoints();
         stroke.clear();
     }
 }
 
-void drawMouse(void) {
-    glClearColor(RGBGREY, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glColor3f(RGBBLACK);
+/**
+ * mouseMotion
+ * Tracks the user's mouse when drawing a stroke, pushes the current
+ * vertex into the stroke vector, and draws the new line segment.
+ */
+void mouseMotion(int x, int y) {
+    y = imageHeight - y;
 
-    glFlush();
+    if (tracking && inWindow(x, y)) {
+        glBegin(GL_LINES);
+            glVertex2f(previousX, previousY);
+            glVertex2f(x, y);
+        glEnd();
+
+        // push vertex into vector
+        stroke.push_back(std::make_pair(x, y));
+
+        // draw line to scene
+        glFlush();
+
+        // keep track of previous coordinates
+        previousX = x;
+        previousY = y;
+    }
 }
 
-/* clears the screen of any user strokes */
-void wipeCanvas(void) {
-    glClearColor(RGBGREY, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glFlush();
-}
-
+/**
+* keyboard
+*/
 void keyboard(unsigned char key, int x, int y) {
     switch (key) {
         case 27: // escape key
@@ -145,13 +193,20 @@ void keyboard(unsigned char key, int x, int y) {
 int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowSize(IMAGEWIDTH, IMAGEHEIGHT);
+
+    imageWidth  = IMAGEWIDTH;
+    imageHeight = IMAGEHEIGHT;
+
+    glutInitWindowSize(imageWidth, imageHeight);
     glutCreateWindow("Sketch Interface");
-    glutDisplayFunc(drawMouse);
-    glutMouseFunc(handleButtonPress);
+
+    init();
+
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutMouseFunc(mouse);
     glutMotionFunc(mouseMotion);
     glutKeyboardFunc(keyboard);
-    gluOrtho2D(0, IMAGEWIDTH, 0, IMAGEHEIGHT);
 
     glutMainLoop();
     return 0;
