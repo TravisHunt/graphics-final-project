@@ -1,0 +1,31 @@
+# Non source files #
+####################
+./documents
+
+# Compiled source #
+###################
+*.o
+*.exe
+
+# Packages #
+############
+*.dmg
+*.7z
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and Databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated #
+################
+.DS_Store
+.DS_Store?
+*.dSYM
