@@ -20,6 +20,7 @@
 
 using std::vector;
 using std::pair;
+using namespace Eigen;
 
 /************* MACROS **************/
 #define IMAGE_WIDTH   800
@@ -42,6 +43,12 @@ static int DISTANCE_BETWEEN_POINTS = 50;
  * smaller numbers give a more accurate mapping
  */
 static float VERTEX_LIMIT = 0.5;
+/**
+ * this constant gives the max acceptible distance between a point across the shape and the normal
+ * vector from the opposite side point
+ * smaller numbers give a more accurate mapping, however shapes less likely to render correctly
+ */
+static int DISTANCE_CONSTANT = 50;
 /*******************************************/
 
 /********** GLOBAL VARIABLES ***************/
@@ -55,10 +62,19 @@ enum MenuOption { CLEAR, SWITCH_2D, SWITCH_3D, TRIANGULATE_2D };
 static int tracking;                    // state of stroke tracking
 static int imageWidth, imageHeight;     // window pixel dimensions
 static int previousX, previousY;        // previous (x,y) for stroke tracking
+static int display_triangles = 0;
 
 vector<pair<int,int> > stroke;          // stroke vertices
 vector<pair<int,int> > points_on_curve; // significant stroke vertices
 vector<pair<int,int> >::iterator it;    // vertex iterator
+
+vector<int> go_back_for;				//list of points to redraw
+vector<pair<pair<int,int>,pair<int,int> > > connected; //list of connected vertices across drawing
+vector<pair<pair<int,int>,pair<int,int> > >::iterator it2; //iterator for connected
+
+vector<Vector4f> vertices_on_shape;
+
+static int recent;						//global variable used in calculating
 
 /*********************************************/
 
@@ -95,6 +111,32 @@ void resetStroke(void);
 
 /*****************************************/
 /* INTERPOLATION *************************/
+
+/**
+ * calculateVerticesDriver
+ * @param NONE
+ * loops through connected to generate the verticies that make up the shape
+ * @return NONE
+ */
+ void calculateVerticesDriver();
+
+ /**
+ * calculateMidpoint
+ * @param int index - the index of the two points in connected
+ * calculates the midpoint of two verices in connected
+ * @return pair<int,int> - the midpoint of the two points at the given index
+ */
+ pair<int,int> calculateMidpoint(int index);
+
+ /**
+ * calculateVertices
+ * @param int index - the index of the two vertices in connected
+ * @param float theta - the degree to rotate the point around the midpoint by
+ * Takes the point on the curve and rotates it around the midline in the shape to give a 3d representation of the shape
+ * appends this vertex to the vector vertices_on_shape
+ * @return NONE
+ */
+void calculateVertices(int index, float Theta);
 
 /**
  * generateClosingPoints
@@ -137,6 +179,70 @@ int findNextPoint(int i, int distance);
  * @return NONE
 */
 void getOutsideEdges(void);
+
+/**
+ * populateConnected
+ * @param NONE
+ * Populates the vector connected with a pairs of points that are across the shape from each other
+ * @return NONE
+*/
+void populateConnected();
+
+/**
+ * iterateThrough
+ * @param int count_forward - index in points_on_curve to count from
+ * @param int count_back - index in points_on_curve to count backward from
+ * Iterates over points_on_curve from count forward to count backward
+ * @return NONE
+*/
+void iterateThrough(int count_forward, int count_back);
+
+/**
+ * checkPoints_CountForward
+ * @param int index1 - the index from the front
+ * @param int index2 - the index from the back
+ * Finds if a point is within expected area, and if not, recurses until proper point is found
+ * Checks from the forward position
+ * @return NONE
+*/
+int checkPoints_CountForward(int index1, int index2);
+
+/**
+ * checkPoints_CountBack
+ * @param int index1 - the index from the back
+ * @param int index2 - the index from the front
+ * Finds if a point is within expected area, and if not, recurses until proper point is found
+ * Checks from the back position
+ * @return int - 0 if not recursed, otherwise the number of indexes skipped
+*/
+int checkPoints_CountBack(int index1, int index2);
+
+/**
+ * isClose
+ * @param pair<int,int> home, normal, point_to_check - the three points necessary to find the distance from the line (home, normal) the the point(point_to_check)
+ *
+ * Decides if a point is close to a give line. the line is from home point in the normal direction
+ * decides if point is close by calculating the point's distance from the line
+ * @return bool - true if the point is within DISTANCE_CONSTANT, false if not
+*/
+bool isClose(pair<int,int> home, pair<int,int> normal, pair<int,int> point_to_check);
+
+/**
+ * drawNewLine
+ * @param index - The point in points_on_curve from which the line will be drawn
+ * @param x - The distance(number of indexes) away the point the line is drawn to.
+ * Creates new line given that the given point is too far from the expected position
+ * @return NONE
+*/
+void drawNewLine(int index, int x);
+
+/**
+ * getNormal
+ * @param pair a, b - Two vertices.
+ * Calculates the normal direction given two points
+ * @return pair<int, int> - The point in the direction of the normal vector
+*/
+pair<int,int> getNormal(pair<int,int> a, pair<int,int> b);
 
 /******************************************/
 /* MENU HANDLING **************************/
