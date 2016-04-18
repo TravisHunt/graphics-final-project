@@ -22,10 +22,13 @@ using std::vector;
 using std::pair;
 
 /************* MACROS **************/
-#define IMAGE_WIDTH  800
-#define IMAGE_HEIGHT 500
-#define RGBBLACK     0,0,0
-#define RGBGREY     .8,.8,.8
+#define IMAGE_WIDTH   800
+#define IMAGE_HEIGHT  500
+#define RGBWHITE      1.0f, 1.0f, 1.0f
+#define RGBBLACK      0.0f, 0.0f, 0.0f
+#define RGBGREY       0.8f, 0.8f, 0.8f
+#define VIEW_RGBA_2D  0.8f, 0.8f, 0.8f, 1.0f
+#define VIEW_RGBA_3D  0.3f, 0.3f, 0.3f, 1.0f
 
 /**
  * this constant gives the space between the important points on the curve
@@ -33,7 +36,7 @@ using std::pair;
  * smaller numbers give smaller meshes
  * number cannot be a power of 2
  */
-static int DISTANCE_BETWEEN_POINTS = 12;
+static int DISTANCE_BETWEEN_POINTS = 50;
 /**
  * this constant gives the max acceptible angle between two points on the curve that is acceptable
  * smaller numbers give a more accurate mapping
@@ -44,7 +47,7 @@ static float VERTEX_LIMIT = 0.5;
 /********** GLOBAL VARIABLES ***************/
 const double PI = 3.141592653589793238462643383279502884197;
 
-//View view;
+View view;
 int menu_2Dview;
 int menu_3Dview;
 enum MenuOption { CLEAR, SWITCH_2D, SWITCH_3D, TRIANGULATE_2D };
@@ -67,6 +70,9 @@ vector<pair<int,int> >::iterator it;    // vertex iterator
  * init
  */
 void init(void);
+
+void enableLighting(void);
+void disableLighting(void);
 
 /**
  * inWindow

@@ -31,6 +31,9 @@ sketching: sketching.cpp view.o
 run:
 	./sketching
 
+test: derp.cpp
+	$(CXX) $(COMPILER_FLAGS) $(LLDLIBS) $^ -o $@ 
+
 clean:
 	rm -f *.o $(TARGETS) *~ .*.swp .*.swo
 	rm -rf *.dSYM
