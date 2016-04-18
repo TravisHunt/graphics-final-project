@@ -12,7 +12,6 @@ void View::init() {
     type = PARALLEL;
     near = 0.001;
     far  = 1000.0;
-    //imagePlane = hither;
     headTilt = 0.0;
 
     viewAngle = 45.0;

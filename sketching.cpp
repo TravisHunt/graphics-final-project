@@ -44,7 +44,7 @@ void init(void) {
     view.setEyePos(0, 0, 5); // camera position
     view.setRGBA(VIEW_RGBA_2D);
 
-    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, 1.0f, 30.0f);
+    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT1);
@@ -99,6 +99,7 @@ void wipeCanvas(void) {
 void resetStroke(void) {
     stroke.clear();
     points_on_curve.clear();
+    connected.clear();
     go_back_for.clear();
 	vertices_on_shape.clear();
 	display_triangles = 0;
@@ -111,67 +112,61 @@ void resetStroke(void) {
 /********* INTERPOLATION ***************/
 
 void calculateVerticesDriver(){
-
 	//loop through connected
 	for (int index = 0; index < connected.size(); index++){
 		//loop through the different degree values
 		for (int theta = 0; theta < 330; theta = theta + 30){
 			calculateVertices(index, (theta*(180/PI)));
 		}
-
 	}
-
 }
 
 pair<int,int> calculateMidpoint(int index){
+    int x1, y1, x2, y2, xm, ym;
 
-int x1, y1, x2, y2, xm, ym;
+    x1 = connected[index].first.first;
+    x2 = connected[index].first.second;
+    y1 = connected[index].second.first;
+    y2 = connected[index].second.second;
 
-	x1 = connected[index].first.first;
-	x2 = connected[index].first.second;
-	y1 = connected[index].second.first;
-	y2 = connected[index].second.second;
+    xm = (x1 + x2) / 2;
+    ym = (y1 + y2) / 2;
 
-	xm = (x1+x2)/2;
-	ym = (y1+y2)/2;
-
-	return (std::make_pair(xm, ym));
+    return (std::make_pair(xm, ym));
 }
 
 void calculateVertices(int index, float Theta) {
+    int x, y, z, a, b, c, u, v, w;
+    float newx, newy, newz;
+    float theta;
+    pair<int,int> midpoint = calculateMidpoint(index);
+    x = connected[index].first.first;
+    y = connected[index].first.second;
+    z = 0;
+    a = midpoint.first;
+    b = midpoint.second;
+    c = 0;
+    u = -a;
+    v = b;
+    w = 0;
 
-int x, y, z, a, b, c, u, v, w;
-float newx, newy, newz;
-float theta;
-pair<int,int> midpoint = calculateMidpoint(index);
-x = connected[index].first.first;
-y = connected[index].first.second;
-z = 0;
-a = midpoint.first;
-b = midpoint.second;
-c = 0;
-u = -a;
-v = b;
-w = 0;
+    int L = ((u*u)+(v*v)+(w*w));
 
-int L = ((u*u)+(v*v)+(w*w));
+    //calculates rotates x
+    newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
+    newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*((-c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
+    newx = newx/L;
+    //calculated rotated y
+    newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
+    newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)+(a*w)-(w*y)+(u*z))*sin(theta));
+    newy = newy/L;
+    //calculates rotated z
+    newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
+    newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*((-b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
+    newz = newz/L;
 
-//calculates rotates x
-newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
-newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*((-c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
-newx = newx/L;
-//calculated rotated y
-newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
-newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)+(a*w)-(w*y)+(u*z))*sin(theta));
-newy = newy/L;
-//calculates rotated z
-newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
-newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*((-b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
-newz = newz/L;
-
-	//push directly into the vector to save it.
-	vertices_on_shape.push_back(Vector4f(newx, newy, newz, 0));
-
+    //push directly into the vector to save it.
+    vertices_on_shape.push_back(Vector4f(newx, newy, newz, 1));
 }
 
 
@@ -479,7 +474,7 @@ void handleMenuEvents(int option) {
             getOutsideEdges();
             populateConnected();
 			calculateVerticesDriver();
-            //glutPostRedisplay();
+            glutPostRedisplay();
             break;
         default:
             break;
@@ -497,30 +492,27 @@ void display(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-    // Reset view
-    glMatrixMode (GL_PROJECTION);
-    glLoadIdentity();
-
     if (view.type == PARALLEL) {
-        std::cout << "Parallel View" << std::endl;
-
+        // Reset view to remove any perspective elements
+        glMatrixMode (GL_PROJECTION);
+        glLoadIdentity();
         glColor3f(RGBBLACK);
-        //glOrtho(0.0, imageWidth, 0.0, imageHeight, 1.0, 30.0);
-        glOrtho(view.left,view.right,view.bottom,view.top,view.near,view.far);
+
+        // Create orthographic projection
+        glOrtho(view.left, view.right, view.bottom, view.top, view.near, view.far);
+
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
     } else { // perspective
-        std::cout << "Perspective View" << std::endl;
-
+        // Enable culling of unseen polygons
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
 
         glColor3f(RGBWHITE);
         glMatrixMode (GL_PROJECTION);
-        glLoadIdentity();
 
-        //gluPerspective(60.0, 1.6, 1.0, 30.0);
-        glFrustum(view.left,view.right,view.bottom,view.top,view.near,view.far);
+        // Add perspective to current orthographic matrix
+        gluPerspective(60.0, 1.6, -100.0, 100.0);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
@@ -562,7 +554,6 @@ void display(void) {
 		glEnd();
 		glPointSize(5);
 		glBegin(GL_POINTS);
-
 		for (it = points_on_curve.begin(); it != points_on_curve.end(); it++){
 			glVertex2f(it->first, it->second);
 		}
@@ -595,13 +586,10 @@ void reshape(int w, int h) {
         it->second += deltaH;
     }
 
-    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, 1.0f, 50.0f);
+    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
 
     // reset viewport to the dimensions
     glViewport(0, 0, w, h);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
 }
 
 void mouse(int button, int state, int x, int y) {

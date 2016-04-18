@@ -42,7 +42,7 @@ static int DISTANCE_BETWEEN_POINTS = 50;
  * this constant gives the max acceptible angle between two points on the curve that is acceptable
  * smaller numbers give a more accurate mapping
  */
-static float VERTEX_LIMIT = 0.5;
+static float VERTEX_LIMIT = 1.0;
 /**
  * this constant gives the max acceptible distance between a point across the shape and the normal
  * vector from the opposite side point
@@ -87,6 +87,10 @@ static int recent;						//global variable used in calculating
  */
 void init(void);
 
+/**
+ * enableLighting & disableLighting
+ * Sets OpenGL lighting bits to turn lighting effects on and off.
+ */
 void enableLighting(void);
 void disableLighting(void);
 
