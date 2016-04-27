@@ -20,7 +20,6 @@
 
 using std::vector;
 using std::pair;
-using namespace Eigen;
 
 /************* MACROS **************/
 #define IMAGE_WIDTH   800
@@ -37,7 +36,7 @@ using namespace Eigen;
  * smaller numbers give smaller meshes
  * number cannot be a power of 2
  */
-static int DISTANCE_BETWEEN_POINTS = 50;
+static int DISTANCE_BETWEEN_POINTS = 30;
 /**
  * this constant gives the max acceptible angle between two points on the curve that is acceptable
  * smaller numbers give a more accurate mapping
@@ -72,7 +71,7 @@ vector<int> go_back_for;				//list of points to redraw
 vector<pair<pair<int,int>,pair<int,int> > > connected; //list of connected vertices across drawing
 vector<pair<pair<int,int>,pair<int,int> > >::iterator it2; //iterator for connected
 
-vector<Vector4f> vertices_on_shape;
+vector<Eigen::Vector4f> vertices_on_shape;
 
 static int recent;						//global variable used in calculating
 

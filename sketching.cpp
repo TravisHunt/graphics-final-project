@@ -166,14 +166,14 @@ void calculateVertices(int index, float Theta) {
     newz = newz/L;
 
     //push directly into the vector to save it.
-    vertices_on_shape.push_back(Vector4f(newx, newy, newz, 1));
+    vertices_on_shape.push_back(Eigen::Vector4f(newx, newy, newz, 1));
 }
 
 
 
 /* commented out incomplete code */
 void populateConnected(){
-
+    if (points_on_curve.size() == 0) return;
 	//sets the original size to iterate over
 	go_back_for.push_back(0);
 	go_back_for.push_back(points_on_curve.size()-1);
@@ -416,6 +416,7 @@ int findNextPoint(int i, int distance){
 }
 
 void getOutsideEdges() {
+    if (stroke.size() == 0) return;
 	//takes first point of stroke and puts it in vector
 	points_on_curve.push_back(stroke[0]);
 	//sets the counter variable
@@ -433,6 +434,32 @@ void getOutsideEdges() {
 	return;
 }
 
+void transition_2D(void) {
+    if (view.type == PARALLEL) return;
+
+    /* set new view data */
+    view.type = PARALLEL;
+    view.setRGBA(VIEW_RGBA_2D);
+
+    glutReshapeWindow(imageWidth, imageHeight);
+    glutPostRedisplay();
+}
+
+void transition_3D(void) {
+    if (view.type == PERSPECTIVE) return;
+
+    /* set new view data */
+    view.type = PERSPECTIVE;
+    view.setRGBA(VIEW_RGBA_3D);
+
+    /* launch 3D mesh creation */
+    getOutsideEdges();
+    populateConnected();
+    calculateVerticesDriver();
+
+    glutReshapeWindow(imageWidth, imageHeight);
+    glutPostRedisplay();
+}
 
 /************ MENU FUNCTIONS *****************/
 void createGLUTMenus(void) {
@@ -454,20 +481,10 @@ void handleMenuEvents(int option) {
             resetStroke();
             break;
         case SWITCH_2D:
-            if (view.type == PARALLEL) return;
-
-            view.type = PARALLEL;
-            view.setRGBA(VIEW_RGBA_2D);
-            glutReshapeWindow(imageWidth, imageHeight);
-            glutPostRedisplay();
+            transition_2D();
             break;
         case SWITCH_3D:
-            if (view.type == PERSPECTIVE) return;
-
-            view.type = PERSPECTIVE;
-            view.setRGBA(VIEW_RGBA_3D);
-            glutReshapeWindow(imageWidth, imageHeight);
-            glutPostRedisplay();
+            transition_3D();
             break;
         case TRIANGULATE_2D:
             display_triangles = 1;
@@ -484,6 +501,7 @@ void handleMenuEvents(int option) {
 void destroyGLUTMenus(void) {
     glutDestroyMenu(menu_2Dview);
 }
+
 
 
 /******** GLUT CALLBACKS **********/
@@ -503,6 +521,33 @@ void display(void) {
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
+
+        // Draw user stroke's vertices
+        glBegin(GL_LINE_LOOP);
+        for (it = stroke.begin(); it != stroke.end(); it++) {
+            glVertex2f(it->first, it->second);
+        }
+        glEnd();
+
+        if (display_triangles) {
+    		glBegin(GL_LINES);
+    		//display_triangles = 0;
+    		std::cout << vertices_on_shape.size() << std::endl;
+    		for (it2 = connected.begin(); it2 != connected.end(); it2++) {
+    			glVertex2f(it2->first.first, it2->first.second);
+    			glVertex2f(it2->second.first, it2->second.second);
+    			//std::cout << it2->first.first << " , " << it2->first.second << std::endl; //test code
+    			//std::cout << it2->second.first << " , " << it2->second.second << std::endl; //test code
+    		}
+    		glEnd();
+    		glPointSize(5);
+    		glBegin(GL_POINTS);
+    		for (it = points_on_curve.begin(); it != points_on_curve.end(); it++){
+    			glVertex2f(it->first, it->second);
+    		}
+    		glEnd();
+    	}
+
     } else { // perspective
         // Enable culling of unseen polygons
         glEnable(GL_CULL_FACE);
@@ -516,9 +561,20 @@ void display(void) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        // gluLookAt(view.eye[0], view.eye[1], view.eye[2],
-        //           view.coi[0], view.coi[1], view.coi[2],
-        //           0, 1, 0);
+        gluLookAt(view.eye[0], view.eye[1], view.eye[2],
+                  view.coi[0], view.coi[1], view.coi[2],
+                  0, 1, 0);
+
+        vector<Eigen::Vector4f>::const_iterator v;
+        glPushMatrix();
+        glPointSize(3);
+        glBegin(GL_POINTS);
+        for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
+            //std::cout << *v << std::endl;
+            glVertex3f(v->x(), v->y(), v->z());
+        }
+        glEnd();
+        glPopMatrix();
     }
 
     if (view.light == ON) {
@@ -533,32 +589,6 @@ void display(void) {
         glutSolidTeapot(50.0);
         glPopMatrix();
     }
-
-    // Draw user stroke's vertices
-    glBegin(GL_LINE_LOOP);
-    for (it = stroke.begin(); it != stroke.end(); it++) {
-        glVertex2f(it->first, it->second);
-    }
-    glEnd();
-
-    if (display_triangles) {
-		glBegin(GL_LINES);
-		//display_triangles = 0;
-		std::cout << vertices_on_shape.size() << std::endl;
-		for (it2 = connected.begin(); it2 != connected.end(); it2++) {
-			glVertex2f(it2->first.first, it2->first.second);
-			glVertex2f(it2->second.first, it2->second.second);
-			//std::cout << it2->first.first << " , " << it2->first.second << std::endl; //test code
-			//std::cout << it2->second.first << " , " << it2->second.second << std::endl; //test code
-		}
-		glEnd();
-		glPointSize(5);
-		glBegin(GL_POINTS);
-		for (it = points_on_curve.begin(); it != points_on_curve.end(); it++){
-			glVertex2f(it->first, it->second);
-		}
-		glEnd();
-	}
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
