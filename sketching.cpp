@@ -63,15 +63,15 @@ void init(void) {
 }
 
 void enableLighting(void) {
-    glEnable(GL_LIGHT1);
+    glEnable(GL_LIGHT0);
     glEnable(GL_NORMALIZE);
     glEnable(GL_COLOR_MATERIAL);
     glEnable(GL_LIGHTING);
 
-    glLightfv(GL_LIGHT1, GL_AMBIENT,  view.LightAmbient);
-    glLightfv(GL_LIGHT1, GL_DIFFUSE,  view.LightDiffuse);
-    glLightfv(GL_LIGHT1, GL_SPECULAR, view.LightSpecular);
-    glLightfv(GL_LIGHT1, GL_POSITION, view.LightPosition);
+    glLightfv(GL_LIGHT0, GL_AMBIENT,  view.LightAmbient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,  view.LightDiffuse);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, view.LightSpecular);
+    glLightfv(GL_LIGHT0, GL_POSITION, view.LightPosition);
 
     glMaterialfv(GL_FRONT, GL_AMBIENT,   view.MatAmbient);
     glMaterialfv(GL_FRONT, GL_DIFFUSE,   view.MatDiffuse);
@@ -80,7 +80,7 @@ void enableLighting(void) {
 }
 
 void disableLighting(void) {
-    glDisable(GL_LIGHT1);
+    glDisable(GL_LIGHT0);
     glDisable(GL_NORMALIZE);
     glDisable(GL_COLOR_MATERIAL);
     glDisable(GL_LIGHTING);
@@ -121,31 +121,42 @@ void calculateVerticesDriver(){
 	}
 }
 
-pair<int,int> calculateMidpoint(int index){
-    int x1, y1, x2, y2, xm, ym;
+// FIXME: This should accept 2 vertices by reference
+Vector3f calculateMidpoint(int index){
+    int x1, y1, x2, y2, z1, z2;
+    int xm, ym, zm;
 
-    x1 = connected[index].first.first;
-    x2 = connected[index].first.second;
-    y1 = connected[index].second.first;
-    y2 = connected[index].second.second;
+    x1 = connected[index].p1->x();
+    x2 = connected[index].p2->x();
+    y1 = connected[index].p1->y();
+    y2 = connected[index].p2->y();
+    z1 = connected[index].p1->z();
+    z2 = connected[index].p2->z();
 
     xm = (x1 + x2) / 2;
     ym = (y1 + y2) / 2;
+    zm = (z1 + z2) / 2;
 
-    return (std::make_pair(xm, ym));
+    return (Vector3f(xm, ym, zm));
 }
 
 void calculateVertices(int index, float Theta) {
     int x, y, z, a, b, c, u, v, w;
     float newx, newy, newz;
     float theta;
-    pair<int,int> midpoint = calculateMidpoint(index);
-    x = connected[index].first.first;
-    y = connected[index].first.second;
-    z = 0;
-    a = midpoint.first;
-    b = midpoint.second;
-    c = 0;
+    Vector3f midpoint = calculateMidpoint(index);
+    x = connected[index].p1->x();
+    y = connected[index].p1->y();
+    z = connected[index].p1->z();
+    // x = connected[index].first.first;
+    // y = connected[index].first.second;
+    // z = 0;
+    a = midpoint.x();
+    b = midpoint.y();
+    c = midpoint.z();
+    // a = midpoint.first;
+    // b = midpoint.second;
+    // c = 0;
     u = -a;
     v = b;
     w = 0;
@@ -166,7 +177,7 @@ void calculateVertices(int index, float Theta) {
     newz = newz/L;
 
     //push directly into the vector to save it.
-    vertices_on_shape.push_back(Eigen::Vector4f(newx, newy, newz, 1));
+    vertices_on_shape.push_back(Vector3f(newx, newy, newz));
 }
 
 
@@ -227,20 +238,21 @@ void iterateThrough(int count_forward, int count_back){
 
 /* commented out incomplete code */
 int checkPoints_CountForward(int index1, int index2){
-	pair<int,int> a = points_on_curve[index1 -1];
-	pair<int,int> b = points_on_curve[index1];
-	pair<int,int> c = points_on_curve[index1 + 1];
+	Vector3f a = points_on_curve[index1 - 1];
+	Vector3f b = points_on_curve[index1];
+	Vector3f c = points_on_curve[index1 + 1];
 
-	pair<int,int> ab = getNormal(a, b);
-	pair<int,int> bc = getNormal(b, c);
+	Vector3f ab = getNormal(a, b);
+	Vector3f bc = getNormal(b, c);
 	//checks to see if the points are a match. if they are not, the function recursus
 /* 	if (isClose(points_on_curve[index1], ab, points_on_curve[index2]) || isClose(points_on_curve[index1], bc, points_on_curve[index2])){
 		if (recent == 2){
 			recent = 1;
 			return (1 + checkPoints_CountForward(index1 + 1, index2));
 		}else{ */
-			connected.push_back(std::make_pair(points_on_curve[index1], points_on_curve[index2]));
-			recent = 0;
+			//connected.push_back(std::make_pair(points_on_curve[index1], points_on_curve[index2]));
+            connected.push_back(Line(points_on_curve[index1], points_on_curve[index2]));
+            recent = 0;
 			return 0;
 /* 		}
 	}else{
@@ -251,20 +263,21 @@ int checkPoints_CountForward(int index1, int index2){
 
 /* commented out incomplete code */
 int checkPoints_CountBack(int index1, int index2){
-	pair<int,int> a = points_on_curve[index1 +1];
-	pair<int,int> b = points_on_curve[index1];
-	pair<int,int> c = points_on_curve[index1 - 1];
+	Vector3f a = points_on_curve[index1 +1];
+	Vector3f b = points_on_curve[index1];
+	Vector3f c = points_on_curve[index1 - 1];
 
-	pair<int,int> ab = getNormal(a, b);
-	pair<int,int> bc = getNormal(b, c);
+	Vector3f ab = getNormal(a, b);
+	Vector3f bc = getNormal(b, c);
 	//checks to see if the points are a match. if they are not, the function recursus
 /* 	if (isClose(points_on_curve[index1], ab, points_on_curve[index2]) || isClose(points_on_curve[index1], bc, points_on_curve[index2])){
 		if (recent == 2){
 			recent = 1;
 			return (1 + checkPoints_CountBack(index1 - 1, index2));
 		}else{ */
-			connected.push_back(std::make_pair(points_on_curve[index1], points_on_curve[index2]));
-			recent = 0;
+			//connected.push_back(std::make_pair(points_on_curve[index1], points_on_curve[index2]));
+            connected.push_back(Line(points_on_curve[index1], points_on_curve[index2]));
+            recent = 0;
 			return 0;
 /* 		}
 	}else{
@@ -273,7 +286,7 @@ int checkPoints_CountBack(int index1, int index2){
 	} */
 }
 
-bool isClose(pair<int,int> home, pair<int,int> normal, pair<int,int> point_to_check){
+bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check) {
 
 	bool close = false;
 
@@ -281,11 +294,11 @@ bool isClose(pair<int,int> home, pair<int,int> normal, pair<int,int> point_to_ch
     float x1, y1, x2, y2;
     float dx, dy;
 
-	x1 = home.first;
-	y1 = home.second;
+	x1 = home.x();
+	y1 = home.y();
 
-	x2 = normal.first;
-	y2 = normal.second;
+	x2 = normal.x();
+	y2 = normal.y();
 
 	dx = x2 - x1;
     dy = y2 - y1;
@@ -295,7 +308,7 @@ bool isClose(pair<int,int> home, pair<int,int> normal, pair<int,int> point_to_ch
     // intercept c = y - mx
     intercept = y1 - slope * x1; // which is same as y2 - slope * x2
 
-	float distance = (std::abs(slope*point_to_check.first - point_to_check.second +intercept) / sqrt(pow(slope, 2) -1));
+	float distance = (std::abs(slope*point_to_check.x() - point_to_check.y() +intercept) / sqrt(pow(slope, 2) -1));
 
 	if (distance > DISTANCE_CONSTANT){
 		return false;
@@ -308,11 +321,11 @@ void drawNewLine(int index, int x){
 
 	GLfloat t, delta, cx, cy;
 
-	vector<pair<int,int> > partition;
+	vector<Vector3f > partition;
 
     // interpolate vertices from Endpoint to Startpoint
-    pair<int,int> P0(stroke[index]);
-    pair<int,int> P1(stroke[index + x]);
+    Vector3f P0(stroke[index]);
+    Vector3f P1(stroke[index + x]);
 
 	float length = sideLength(P0, P1);
 
@@ -322,34 +335,37 @@ void drawNewLine(int index, int x){
     t = 0.0;
     glBegin(GL_LINE_STRIP);
     for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * P0.first + t * P1.first;
-        cy = (P0.second + (P1.second - P0.second) *
-            ((cx - P0.first) / (P1.first - P0.first)));
+        cx = (1.0 - t) * P0(0) + t * P1(0);
+        cy = (P0(1) + (P1(1) - P0(1)) *
+            ((cx - P0(0)) / (P1(0) - P0(0))));
 
         // draw line between new point and last point
         glVertex2f(cx, cy);
         // add interpolated point to stroke
-        partition.push_back(std::make_pair(cx, cy));
+        partition.push_back(Vector3f(cx, cy, 0));
     }
     glEnd();
     // push closing line to screen
     glFlush();
-	std::vector<pair<int,int> >::iterator it;
+
+	//vector<Vector3f>::iterator it;
 	it = points_on_curve.begin();
-	if (x<0){
+	if (x < 0) {
 		points_on_curve.insert(it+index, partition.rbegin(), partition.rend());
-	}else{
+	} else {
 		points_on_curve.insert(it+index, partition.begin(), partition.end());
 	}
 
 }
 
-pair<int,int> getNormal(pair<int,int> a, pair<int,int> b){
+Vector3f getNormal(Vector3f &a, Vector3f &b){
 
-	int dx = b.first - a.first;
-	int dy = b.second - a.second;
+    // NOTE: This is not how you find the normal of 2 vectors
+	//int dx = b.first - a.first;
+	//int dy = b.second - a.second;
 
-	return std::make_pair(dx, dy);
+    // NOTE: The cross product of two vectors gives you the normal.
+	return a.cross(b);
 
 }
 
@@ -357,25 +373,26 @@ void generateClosingPoints(void) {
     GLfloat t, delta, cx, cy;
 
     // interpolate vertices from Endpoint to Startpoint
-    pair<int,int> P0(stroke.back());
-    pair<int,int> P1(stroke.front());
+    Vector3f P0(stroke.back());
+    Vector3f P1(stroke.front());
 
     float length = sideLength(P0, P1);
 
     // Linearly interpolate points
     t = 0.0; delta = 1/(length/12);
     for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * P0.first + t * P1.first;
-        cy = (P0.second + (P1.second - P0.second) *
-            ((cx - P0.first) / (P1.first - P0.first)));
+        cx = (1.0 - t) * P0.x() + t * P1.y();
+        cy = (P0.y() + (P1.y() - P0.y()) *
+            ((cx - P0.x()) / (P1.x() - P0.x())));
 
         // add interpolated point to stroke
-        stroke.push_back(std::make_pair(cx, cy));
+        stroke.push_back(Vector3f(cx, cy, 0));
+        //stroke.push_back(std::make_pair(cx, cy));
     }
 }
 
-float sideLength(pair<int,int> a, pair<int,int> b) {
-	return sqrt(pow((a.first - b.second), 2) + pow((a.second - b.second), 2));
+float sideLength(Vector3f &a, Vector3f &b) {
+	return sqrt(pow((a.x() - b.y()), 2) + pow((a.y() - b.y()), 2));
 }
 
 float calcAngle(float BA, float BC, float AC) {
@@ -395,9 +412,9 @@ int findNextPoint(int i, int distance){
 	//if everything is okay
 	} else {
 		//get three points
-		pair<int,int> a = stroke[i];
-		pair<int,int> b = stroke[i+(distance/2)];
-		pair<int,int> c = stroke[i+distance];
+		Vector3f a = stroke[i];
+		Vector3f b = stroke[i+(distance/2)];
+		Vector3f c = stroke[i+distance];
 		//find distance between each point around triangle
 		float ba = sideLength(b, a);
 		float bc = sideLength(b, c);
@@ -426,7 +443,7 @@ void getOutsideEdges() {
 		//find the next point for the curve
 		count = findNextPoint(i, DISTANCE_BETWEEN_POINTS);
 		//add to the vector
-        if (stroke[count].first != 0 && stroke[count].second != 0) {
+        if (stroke[count].x() != 0 && stroke[count].y() != 0) {
 		    points_on_curve.push_back(stroke[count]);
         }
 		std::cout << count << std::endl; //test code
@@ -525,7 +542,7 @@ void display(void) {
         // Draw user stroke's vertices
         glBegin(GL_LINE_LOOP);
         for (it = stroke.begin(); it != stroke.end(); it++) {
-            glVertex2f(it->first, it->second);
+            glVertex2f(it->x(), it->y());
         }
         glEnd();
 
@@ -534,16 +551,16 @@ void display(void) {
     		//display_triangles = 0;
     		std::cout << vertices_on_shape.size() << std::endl;
     		for (it2 = connected.begin(); it2 != connected.end(); it2++) {
-    			glVertex2f(it2->first.first, it2->first.second);
-    			glVertex2f(it2->second.first, it2->second.second);
-    			//std::cout << it2->first.first << " , " << it2->first.second << std::endl; //test code
-    			//std::cout << it2->second.first << " , " << it2->second.second << std::endl; //test code
+    			glVertex2f(it2->p1->x(), it2->p1->y());
+    			glVertex2f(it2->p2->x(), it2->p2->y());
+    			//std::cout << it2->first.x() << " , " << it2->first.second << std::endl; //test code
+    			//std::cout << it2->second.x() << " , " << it2->second.second << std::endl; //test code
     		}
     		glEnd();
     		glPointSize(5);
     		glBegin(GL_POINTS);
     		for (it = points_on_curve.begin(); it != points_on_curve.end(); it++){
-    			glVertex2f(it->first, it->second);
+    			glVertex2f(it->x(), it->y());
     		}
     		glEnd();
     	}
@@ -565,10 +582,10 @@ void display(void) {
                   view.coi[0], view.coi[1], view.coi[2],
                   0, 1, 0);
 
-        vector<Eigen::Vector4f>::const_iterator v;
         glPushMatrix();
         glPointSize(3);
         glBegin(GL_POINTS);
+        vector<Vector3f>::const_iterator v;
         for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
             //std::cout << *v << std::endl;
             glVertex3f(v->x(), v->y(), v->z());
@@ -612,8 +629,8 @@ void reshape(int w, int h) {
 
     // Update stroke vertices to keep stroke centered
     for (it = stroke.begin(); it != stroke.end(); it++) {
-        it->first  += deltaW;
-        it->second += deltaH;
+        it->x() += deltaW;
+        it->y() += deltaH;
     }
 
     view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
@@ -654,7 +671,8 @@ void mouseMotion(int x, int y) {
 
     if (tracking && inWindow(x, y)) {
         // push vertex into vector
-        stroke.push_back(std::make_pair(x, y));
+        stroke.push_back(Vector3f(x, y, 0));
+        //stroke.push_back(std::make_pair(x, y));
 
         glBegin(GL_LINES);
             glVertex2f(previousX, previousY);

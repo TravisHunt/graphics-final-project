@@ -15,11 +15,10 @@
 #include <cmath>
 #include <vector>
 #include <Eigen/Dense>
-
 #include "view.h"
 
+using Eigen::Vector3f;
 using std::vector;
-using std::pair;
 
 /************* MACROS **************/
 #define IMAGE_WIDTH   800
@@ -63,15 +62,24 @@ static int imageWidth, imageHeight;     // window pixel dimensions
 static int previousX, previousY;        // previous (x,y) for stroke tracking
 static int display_triangles = 0;
 
-vector<pair<int,int> > stroke;          // stroke vertices
-vector<pair<int,int> > points_on_curve; // significant stroke vertices
-vector<pair<int,int> >::iterator it;    // vertex iterator
+struct Line {
+    Vector3f *p1;
+    Vector3f *p2;
+
+    Line():p1(NULL), p2(NULL) {}
+    Line(Vector3f &v1, Vector3f &v2)
+    : p1(&v1), p2(&v2) {}
+};
+
+vector<Vector3f> stroke;          // stroke vertices
+vector<Vector3f> points_on_curve; // significant stroke vertices
+vector<Vector3f>::iterator it;    // vertex iterator
 
 vector<int> go_back_for;				//list of points to redraw
-vector<pair<pair<int,int>,pair<int,int> > > connected; //list of connected vertices across drawing
-vector<pair<pair<int,int>,pair<int,int> > >::iterator it2; //iterator for connected
+vector<Line> connected; //list of connected vertices across drawing
+vector<Line>::iterator it2; //iterator for connected
 
-vector<Eigen::Vector4f> vertices_on_shape;
+vector<Vector3f> vertices_on_shape;
 
 static int recent;						//global variable used in calculating
 
@@ -127,9 +135,9 @@ void resetStroke(void);
  * calculateMidpoint
  * @param int index - the index of the two points in connected
  * calculates the midpoint of two verices in connected
- * @return pair<int,int> - the midpoint of the two points at the given index
+ * @return Vector3f - the midpoint of the two points at the given index
  */
- pair<int,int> calculateMidpoint(int index);
+ Vector3f calculateMidpoint(int index);
 
  /**
  * calculateVertices
@@ -155,7 +163,7 @@ void generateClosingPoints(void);
  * Takes pair a and pair b (2 points on line).
  * returns the distance between the points
  */
-float sideLength(pair<int,int> a, pair<int,int> b);
+float sideLength(Vector3f &a, Vector3f &b);
 
 /**
  * calcAngle
@@ -222,13 +230,13 @@ int checkPoints_CountBack(int index1, int index2);
 
 /**
  * isClose
- * @param pair<int,int> home, normal, point_to_check - the three points necessary to find the distance from the line (home, normal) the the point(point_to_check)
+ * @param Vector3f home, normal, point_to_check - the three points necessary to find the distance from the line (home, normal) the the point(point_to_check)
  *
  * Decides if a point is close to a give line. the line is from home point in the normal direction
  * decides if point is close by calculating the point's distance from the line
  * @return bool - true if the point is within DISTANCE_CONSTANT, false if not
 */
-bool isClose(pair<int,int> home, pair<int,int> normal, pair<int,int> point_to_check);
+bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check);
 
 /**
  * drawNewLine
@@ -245,7 +253,7 @@ void drawNewLine(int index, int x);
  * Calculates the normal direction given two points
  * @return pair<int, int> - The point in the direction of the normal vector
 */
-pair<int,int> getNormal(pair<int,int> a, pair<int,int> b);
+Vector3f getNormal(Vector3f &a, Vector3f &b);
 
 /******************************************/
 /* MENU HANDLING **************************/
