@@ -155,7 +155,7 @@ void calculateVertices(int index, float Theta);
  * connecting vertices, via the Midpoint formula, to create a closed
  * planar polygon.
  */
-void generateClosingPoints(void);
+void generateClosingPoints(vector<Vector3f> &points);
 
 /**
  * sideLength
@@ -245,7 +245,8 @@ bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check);
  * Creates new line given that the given point is too far from the expected position
  * @return NONE
 */
-void drawNewLine(int index, int x);
+void drawNewLine(Vector3f &a, Vector3f &b, vector<Vector3f> &curve, int offset);
+//void drawNewLine(int index, int x);
 
 /**
  * getNormal

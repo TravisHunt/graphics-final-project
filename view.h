@@ -2,7 +2,7 @@
 #define _VIEW_H
 
 enum ProjectionType { PARALLEL, PERSPECTIVE };
-enum Lighting { ON, OFF};
+enum Lighting { OFF, ON };
 
 class View {
 public:

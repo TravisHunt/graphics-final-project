@@ -317,27 +317,28 @@ bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check) {
 	}
 }
 
-void drawNewLine(int index, int x){
-
+//void drawNewLine(int index, int x){
+void drawNewLine(Vector3f &a, Vector3f &b,
+    vector<Vector3f> &curve, int offset)
+{
 	GLfloat t, delta, cx, cy;
-
-	vector<Vector3f > partition;
+	vector<Vector3f> partition;
 
     // interpolate vertices from Endpoint to Startpoint
-    Vector3f P0(stroke[index]);
-    Vector3f P1(stroke[index + x]);
+    //Vector3f P0(stroke[index]);
+    //Vector3f P1(stroke[index + x]);
+    float length = sideLength(a, b);
+	//float length = sideLength(P0, P1);
 
-	float length = sideLength(P0, P1);
-
-	delta = 1/(length/12);
+	delta = 1 / (length / 12);
 
     // Linearly interpolate points
     t = 0.0;
     glBegin(GL_LINE_STRIP);
     for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * P0(0) + t * P1(0);
-        cy = (P0(1) + (P1(1) - P0(1)) *
-            ((cx - P0(0)) / (P1(0) - P0(0))));
+        cx = (1.0 - t) * a(0) + t * b(0);
+        cy = (a(1) + (b(1) - a(1)) *
+            ((cx - a(0)) / (b(0) - a(0))));
 
         // draw line between new point and last point
         glVertex2f(cx, cy);
@@ -349,44 +350,45 @@ void drawNewLine(int index, int x){
     glFlush();
 
 	//vector<Vector3f>::iterator it;
-	it = points_on_curve.begin();
-	if (x < 0) {
-		points_on_curve.insert(it+index, partition.rbegin(), partition.rend());
+    vector<Vector3f>::const_iterator c;
+	c = curve.begin();
+	if (offset < 0) {
+		curve.insert(c + offset, partition.rbegin(), partition.rend());
 	} else {
-		points_on_curve.insert(it+index, partition.begin(), partition.end());
+		curve.insert(c + offset, partition.begin(), partition.end());
 	}
 
 }
 
-Vector3f getNormal(Vector3f &a, Vector3f &b){
-
+Vector3f getNormal(Vector3f &a, Vector3f &b)
+{
     // NOTE: This is not how you find the normal of 2 vectors
 	//int dx = b.first - a.first;
 	//int dy = b.second - a.second;
 
     // NOTE: The cross product of two vectors gives you the normal.
 	return a.cross(b);
-
 }
 
-void generateClosingPoints(void) {
+void generateClosingPoints(vector<Vector3f> &points)
+{
     GLfloat t, delta, cx, cy;
 
     // interpolate vertices from Endpoint to Startpoint
-    Vector3f P0(stroke.back());
-    Vector3f P1(stroke.front());
+    Vector3f a = stroke.back();
+    Vector3f b = stroke.front();
 
-    float length = sideLength(P0, P1);
+    float length = sideLength(a, b);
 
     // Linearly interpolate points
     t = 0.0; delta = 1/(length/12);
     for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * P0.x() + t * P1.y();
-        cy = (P0.y() + (P1.y() - P0.y()) *
-            ((cx - P0.x()) / (P1.x() - P0.x())));
+        cx = (1.0 - t) * a.x() + t * b.y();
+        cy = (a.y() + (b.y() - a.y()) *
+            ((cx - a.x()) / (b.x() - a.x())));
 
         // add interpolated point to stroke
-        stroke.push_back(Vector3f(cx, cy, 0));
+        points.push_back(Vector3f(cx, cy, 0));
         //stroke.push_back(std::make_pair(cx, cy));
     }
 }
@@ -399,7 +401,8 @@ float calcAngle(float BA, float BC, float AC) {
 	return acos((pow(BA, 2) + pow(BC, 2) - pow(AC, 2))/(2 * BA * BC));
 }
 
-int findNextPoint(int i, int distance){
+int findNextPoint(int i, int distance)
+{
 	//base case, if the distance exceeds the bounds
 	if (i+distance > stroke.size() && distance % 2 == 0) {
 		return findNextPoint(i, distance/2);
@@ -660,7 +663,7 @@ void mouse(int button, int state, int x, int y) {
         previousX = 0;
         previousY = 0;
         // get start & end connecting vertices
-        generateClosingPoints();
+        generateClosingPoints(stroke);
         // redraw stroke
         glutPostRedisplay();
     }
@@ -668,6 +671,10 @@ void mouse(int button, int state, int x, int y) {
 
 void mouseMotion(int x, int y) {
     y = imageHeight - y;
+
+    float mindist = 0.1;
+    float distance = sqrt(pow(x - previousX, 2) + pow(y - previousY, 2));
+    if (distance < mindist) return;
 
     if (tracking && inWindow(x, y)) {
         // push vertex into vector
@@ -695,7 +702,7 @@ void keyboard(unsigned char key, int x, int y) {
             exit(0);
             break;
         case 108: // 'l' for lighting
-            view.light = view.light == ON ? OFF : ON;
+            view.light = (view.light == ON) ? OFF : ON;
             glutPostRedisplay();
             break;
         case 116: // 't' for teapot
