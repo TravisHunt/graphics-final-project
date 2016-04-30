@@ -16,8 +16,9 @@
 #include <vector>
 #include <Eigen/Dense>
 #include "view.h"
+#include "trackball.h"
 
-using Eigen::Vector3f;
+using namespace Eigen;
 using std::vector;
 
 /************* MACROS **************/

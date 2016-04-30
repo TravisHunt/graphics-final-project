@@ -5,6 +5,8 @@
 
 static int teapot = 0;
 
+Trackball trackball;
+
 int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE| GLUT_DEPTH);
@@ -44,10 +46,15 @@ void init(void) {
     view.setEyePos(0, 0, 5); // camera position
     view.setRGBA(VIEW_RGBA_2D);
 
+    trackball.set_eye(view.eye);
+    trackball.set_focus(view.coi);
+    trackball.set_window_size(imageWidth, imageHeight);
+
     view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
 
     glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT1);
+    glEnable(GL_LIGHT0);
+    view.light = ON;
     view.setLightAmbient(0.0f, 0.0f, 0.0f, 1.0f);
     view.setLightDiffuse(1.0f, 1.0f, 1.0f, 1.0f);
     view.setLightSpecular(1.0f, 1.0f, 1.0f, 1.0f);
@@ -522,13 +529,35 @@ void destroyGLUTMenus(void) {
     glutDestroyMenu(menu_2Dview);
 }
 
+void mat4f_to_buffer(Matrix4f mat, GLfloat buf[])
+{
+    GLfloat *mp;
 
+    // Matrix4f is col-major by default, so get transpose
+    mat.transposeInPlace();
+    mp = mat.data();
+
+    // Copy matrix contents to buffer
+    unsigned i;
+    for (i = 0; i < 16; i++)
+        buf[i] = mp[i];
+}
 
 /******** GLUT CALLBACKS **********/
-void display(void) {
+void display(void)
+{
     glClearColor(view.rgba[0], view.rgba[1], view.rgba[2], view.rgba[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
+
+    // FIXME: m is being set to nan for some reason
+    ///GLfloat m[16];
+    GLfloat *m = trackball.get_matrix().data();
+    //mat4f_to_buffer(track_mat, m);
+    printf("%f, %f, %f, %f\n", m[0],m[1],m[2],m[3]);
+    printf("%f, %f, %f, %f\n", m[4],m[5],m[6],m[7]);
+    printf("%f, %f, %f, %f\n", m[8],m[9],m[10],m[11]);
+    printf("%f, %f, %f, %f\n", m[12],m[13],m[14],m[15]);
 
     if (view.type == PARALLEL) {
         // Reset view to remove any perspective elements
@@ -645,32 +674,57 @@ void reshape(int w, int h) {
 void mouse(int button, int state, int x, int y) {
     y = imageHeight - y;
 
-    if (button != GLUT_LEFT_BUTTON) return;
+    //if (button != GLUT_LEFT_BUTTON) return;
+    // In 3D viewing mode, we want the trackball to be active
+    if (view.type == PERSPECTIVE) {
+        long s = 0x00000000;
+        s |= (button == GLUT_LEFT_BUTTON)   ? ((state == GLUT_DOWN) ? Trackball::LBUTTON_DOWN : Trackball::LBUTTON_UP) : 0;
+        s |= (button == GLUT_MIDDLE_BUTTON) ? ((state == GLUT_DOWN) ? Trackball::MBUTTON_DOWN : Trackball::MBUTTON_UP) : 0;
+        s |= (button == GLUT_RIGHT_BUTTON)  ? ((state == GLUT_DOWN) ? Trackball::RBUTTON_DOWN : Trackball::RBUTTON_UP) : 0;
 
-    if (state == GLUT_DOWN) {
-        if (inWindow(x, y)) {
-            // New stroke
-            if (!tracking) {
-                resetStroke();
-                tracking = 1;
-            }
-            // Update coordinates
-            previousX = x;
-            previousY = y;
+        int key_state = glutGetModifiers();
+        s |= (key_state & GLUT_ACTIVE_CTRL)  ? Trackball::CTRL_DOWN  : 0;
+        s |= (key_state & GLUT_ACTIVE_ALT)   ? Trackball::ALT_DOWN   : 0;
+        s |= (key_state & GLUT_ACTIVE_SHIFT) ? Trackball::SHIFT_DOWN : 0;
+
+        if (s & Trackball::BUTTON_DOWN) {
+            trackball.mouse_down(s, x, y);
         }
-    } else { // stroke complete
-        tracking = 0;
-        previousX = 0;
-        previousY = 0;
-        // get start & end connecting vertices
-        generateClosingPoints(stroke);
-        // redraw stroke
-        glutPostRedisplay();
+
+        if (s & Trackball::BUTTON_UP) {
+            trackball.mouse_up(s, x, y);
+        }
+    } else if (view.type == PARALLEL) {
+        if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+            if (inWindow(x, y)) {
+                // New stroke
+                if (!tracking) {
+                    resetStroke();
+                    tracking = 1;
+                }
+                // Update coordinates
+                previousX = x;
+                previousY = y;
+            }
+        } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) { // stroke complete
+            tracking = 0;
+            previousX = 0;
+            previousY = 0;
+            // get start & end connecting vertices
+            generateClosingPoints(stroke);
+            // redraw stroke
+            glutPostRedisplay();
+        }
     }
 }
 
 void mouseMotion(int x, int y) {
     y = imageHeight - y;
+
+    if (view.type == PERSPECTIVE) {
+        trackball.mouse_motion(x, y);
+        glutPostRedisplay();
+    }
 
     float mindist = 0.1;
     float distance = sqrt(pow(x - previousX, 2) + pow(y - previousY, 2));
