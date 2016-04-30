@@ -10,8 +10,6 @@ static const GLdouble PI = 3.141592653589793238462643383279502884197;
 #define DEFAULT_DOLLY_SCALE  0.5f
 #define DEFAULT_PAN_SCALE    0.1f
 
-#define pow2(x) (x*x)
-
 /*  This function is based on Erich Boleyn (erich@uruk.org)
  *
  *  Arbitrary axis rotation matrix.
@@ -24,10 +22,10 @@ static const GLdouble PI = 3.141592653589793238462643383279502884197;
  *  all elementary rotations.
  */
 
-void rotate_matrix(GLfloat theta, GLfloat x, GLfloat y, GLfloat z, Eigen::Matrix4f &m)
+void rotate_matrix(GLfloat theta, GLfloat x, GLfloat y, GLfloat z, Matrix4f &m)
 {
     GLfloat xx, yy, zz, xy, yz, zx, xs, ys, zs, one_c;
-    GLfloat len = (GLfloat) sqrt(pow2(x) + pow2(x) + pow2(x));
+    GLfloat len = (GLfloat) sqrt(x*x + y*y + z*z);
 
     /* if m length is zero, set m to identity and return */
     if (len == 0.0) {
@@ -66,6 +64,7 @@ Trackball::Trackball() :
     window_width(800),
     window_height(500)
 {
+    reset();
     /* default attach mode */
     attach(PAN,    LBUTTON_DOWN | SHIFT_DOWN);
     attach(ZOOM,   LBUTTON_DOWN | CTRL_DOWN);
@@ -76,6 +75,8 @@ Trackball::Trackball() :
 void Trackball::reset()
 {
     mouse_mat.setIdentity();
+    world2focus.setIdentity();
+    focus2world.setIdentity();
     action = _NONE;
 }
 
@@ -131,12 +132,11 @@ void Trackball::mouse_motion(GLint x, GLint y)
          /* project the axis on x-y plane */
          axis[2] = 0.0f;
 
-         GLfloat span = (GLfloat) sqrt(pow2(x-start_x) + pow2(y-start_y));
+         GLfloat span = sqrt((x-start_x)*(x-start_x) + (y-start_y)*(y-start_y));
          GLfloat rot_angle = span * rotate_scale;
          Matrix4f m;
          rotate_matrix(rot_angle, axis[0], axis[1], axis[2], m);
-         Matrix4f rotate(m);
-         mouse_mat = focus2world * rotate * world2focus * mouse_mat;
+         mouse_mat = focus2world * m * world2focus * mouse_mat;
          start = end;
          break;
     }
@@ -198,7 +198,7 @@ Vector3f Trackball::trackball_mapping(GLint x, GLint y)
          (window_height - 2.0f * y) / window_height,
          0.0f;
 
-    d = (GLfloat) sqrt(pow2(v(0)) + pow2(v(1)) + pow2(v(2)));
+    d = (GLfloat) sqrt(v(0)*v(0) + v(1)*v(1) + v(2)*v(2));
     d = (d < 1.0f) ? d : 1.0f;
     v[2] = (GLfloat) sqrt(1.01f - d*d);
     v = v.normalized();

@@ -3,8 +3,6 @@
 #define RADIANS(deg) (deg * (PI / 180))
 #define DEGREES(rad) (rad * (180 / PI))
 
-static int teapot = 0;
-
 Trackball trackball;
 
 int main(int argc, char *argv[]) {
@@ -43,14 +41,14 @@ void init(void) {
     previousY = 0;
 
     view.setCOI(0, 0, 0); // set coi to origin
-    view.setEyePos(0, 0, 5); // camera position
+    view.setEyePos(0, 0, -500); // camera position
     view.setRGBA(VIEW_RGBA_2D);
 
     trackball.set_eye(view.eye);
     trackball.set_focus(view.coi);
     trackball.set_window_size(imageWidth, imageHeight);
 
-    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
+    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -500.0f, 500.0f);
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
@@ -456,7 +454,6 @@ void getOutsideEdges() {
         if (stroke[count].x() != 0 && stroke[count].y() != 0) {
 		    points_on_curve.push_back(stroke[count]);
         }
-		std::cout << count << std::endl; //test code
 	}
 	return;
 }
@@ -529,20 +526,6 @@ void destroyGLUTMenus(void) {
     glutDestroyMenu(menu_2Dview);
 }
 
-void mat4f_to_buffer(Matrix4f mat, GLfloat buf[])
-{
-    GLfloat *mp;
-
-    // Matrix4f is col-major by default, so get transpose
-    mat.transposeInPlace();
-    mp = mat.data();
-
-    // Copy matrix contents to buffer
-    unsigned i;
-    for (i = 0; i < 16; i++)
-        buf[i] = mp[i];
-}
-
 /******** GLUT CALLBACKS **********/
 void display(void)
 {
@@ -550,27 +533,8 @@ void display(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-    // FIXME: m is being set to nan for some reason
-    ///GLfloat m[16];
-    GLfloat *m = trackball.get_matrix().data();
-    //mat4f_to_buffer(track_mat, m);
-    printf("%f, %f, %f, %f\n", m[0],m[1],m[2],m[3]);
-    printf("%f, %f, %f, %f\n", m[4],m[5],m[6],m[7]);
-    printf("%f, %f, %f, %f\n", m[8],m[9],m[10],m[11]);
-    printf("%f, %f, %f, %f\n", m[12],m[13],m[14],m[15]);
-
     if (view.type == PARALLEL) {
-        // Reset view to remove any perspective elements
-        glMatrixMode (GL_PROJECTION);
-        glLoadIdentity();
         glColor3f(RGBBLACK);
-
-        // Create orthographic projection
-        glOrtho(view.left, view.right, view.bottom, view.top, view.near, view.far);
-
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
         // Draw user stroke's vertices
         glBegin(GL_LINE_LOOP);
         for (it = stroke.begin(); it != stroke.end(); it++) {
@@ -578,15 +542,12 @@ void display(void)
         }
         glEnd();
 
+        // Draw mesh triangles
         if (display_triangles) {
     		glBegin(GL_LINES);
-    		//display_triangles = 0;
-    		std::cout << vertices_on_shape.size() << std::endl;
     		for (it2 = connected.begin(); it2 != connected.end(); it2++) {
     			glVertex2f(it2->p1->x(), it2->p1->y());
     			glVertex2f(it2->p2->x(), it2->p2->y());
-    			//std::cout << it2->first.x() << " , " << it2->first.second << std::endl; //test code
-    			//std::cout << it2->second.x() << " , " << it2->second.second << std::endl; //test code
     		}
     		glEnd();
     		glPointSize(5);
@@ -597,29 +558,22 @@ void display(void)
     		glEnd();
     	}
 
-    } else { // perspective
-        // Enable culling of unseen polygons
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-
+    } else if (view.type == PERSPECTIVE) {
         glColor3f(RGBWHITE);
-        glMatrixMode (GL_PROJECTION);
 
-        // Add perspective to current orthographic matrix
-        gluPerspective(60.0, 1.6, -100.0, 100.0);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        gluLookAt(view.eye[0], view.eye[1], view.eye[2],
-                  view.coi[0], view.coi[1], view.coi[2],
-                  0, 1, 0);
+        GLfloat *m = trackball.get_matrix().data();
+        glPushMatrix();
+        glMultMatrixf(m);
 
         glPushMatrix();
+        glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
+        glutSolidTeapot(50.0);
+        glPopMatrix();
+
         glPointSize(3);
         glBegin(GL_POINTS);
         vector<Vector3f>::const_iterator v;
         for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
-            //std::cout << *v << std::endl;
             glVertex3f(v->x(), v->y(), v->z());
         }
         glEnd();
@@ -630,13 +584,6 @@ void display(void)
         enableLighting();
     } else {
         disableLighting();
-    }
-
-    if (teapot) {
-        glPushMatrix();
-        glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
-        glutSolidTeapot(50.0);
-        glPopMatrix();
     }
 
     glDisable(GL_DEPTH_TEST);
@@ -665,16 +612,40 @@ void reshape(int w, int h) {
         it->y() += deltaH;
     }
 
-    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -100.0f, 100.0f);
-
-    // reset viewport to the dimensions
+    // Update bounding box parameters
+    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, view.near, view.far);
     glViewport(0, 0, w, h);
+
+    if (view.type == PARALLEL) {
+        // Reset view to remove any perspective elements
+        glMatrixMode (GL_PROJECTION);
+        glLoadIdentity();
+
+        // Create orthographic projection
+        glOrtho(view.left, view.right, view.bottom, view.top, view.near, view.far);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+    } else if (view.type == PERSPECTIVE) {
+        // Enable culling of unseen polygons
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glMatrixMode (GL_PROJECTION);
+
+        // Add perspective to current orthographic matrix
+        gluPerspective(60.0, 1.6, view.near, view.far);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        gluLookAt(view.eye[0], view.eye[1], view.eye[2],
+                  view.coi[0], view.coi[1], view.coi[2],
+                  0, 1, 0);
+    }
 }
 
 void mouse(int button, int state, int x, int y) {
     y = imageHeight - y;
 
-    //if (button != GLUT_LEFT_BUTTON) return;
     // In 3D viewing mode, we want the trackball to be active
     if (view.type == PERSPECTIVE) {
         long s = 0x00000000;
@@ -688,11 +659,11 @@ void mouse(int button, int state, int x, int y) {
         s |= (key_state & GLUT_ACTIVE_SHIFT) ? Trackball::SHIFT_DOWN : 0;
 
         if (s & Trackball::BUTTON_DOWN) {
-            trackball.mouse_down(s, x, y);
+            trackball.mouse_down(s, x, -y);
         }
 
         if (s & Trackball::BUTTON_UP) {
-            trackball.mouse_up(s, x, y);
+            trackball.mouse_up(s, x, -y);
         }
     } else if (view.type == PARALLEL) {
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -706,7 +677,8 @@ void mouse(int button, int state, int x, int y) {
                 previousX = x;
                 previousY = y;
             }
-        } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) { // stroke complete
+        } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+            // stroke complete
             tracking = 0;
             previousX = 0;
             previousY = 0;
@@ -721,11 +693,14 @@ void mouse(int button, int state, int x, int y) {
 void mouseMotion(int x, int y) {
     y = imageHeight - y;
 
+    // Update trackball and exit, because there's no drawing in 3D view.
     if (view.type == PERSPECTIVE) {
-        trackball.mouse_motion(x, y);
+        trackball.mouse_motion(x, -y);
         glutPostRedisplay();
     }
 
+    // Only record point if the distance between the new point and the last
+    // point is >= the minimum distance.
     float mindist = 0.1;
     float distance = sqrt(pow(x - previousX, 2) + pow(y - previousY, 2));
     if (distance < mindist) return;
@@ -733,7 +708,6 @@ void mouseMotion(int x, int y) {
     if (tracking && inWindow(x, y)) {
         // push vertex into vector
         stroke.push_back(Vector3f(x, y, 0));
-        //stroke.push_back(std::make_pair(x, y));
 
         glBegin(GL_LINES);
             glVertex2f(previousX, previousY);
@@ -751,17 +725,19 @@ void mouseMotion(int x, int y) {
 
 void keyboard(unsigned char key, int x, int y) {
     switch (key) {
-        case 27: // escape key
-            destroyGLUTMenus();
-            exit(0);
-            break;
-        case 108: // 'l' for lighting
-            view.light = (view.light == ON) ? OFF : ON;
-            glutPostRedisplay();
-            break;
-        case 116: // 't' for teapot
-            teapot = teapot^1;
-            glutPostRedisplay();
-            break;
+    case 27: // escape key
+        destroyGLUTMenus();
+        exit(0);
+        break;
+    case 50: // '2' for 2D transition
+        transition_2D();
+        break;
+    case 51: // '3' for 3D transition
+        transition_3D();
+        break;
+    case 108: // 'l' for lighting
+        view.light = (view.light == ON) ? OFF : ON;
+        glutPostRedisplay();
+        break;
     }
 }
