@@ -19,13 +19,14 @@ INCLUDE= $(OPENGL_INC)
 LLDLIBS= $(OPENGL_LIB) -I ./libs/
 
 TARGETS = sketching
+OBJS = view.o trackball.o
 
 default : $(TARGETS)
 
 %.o: %.cpp
-	$(CXX) -c -o $@ $(COMPILER_FLAGS)  $< $(INCLUDE)
+	$(CXX) -c -o $@ $(COMPILER_FLAGS) -I ./libs/  $< $(INCLUDE)
 
-sketching: sketching.cpp view.o
+sketching: sketching.cpp $(OBJS)
 	$(CXX) $(COMPILER_FLAGS) $(LLDLIBS) $^ -o $@
 
 run:
