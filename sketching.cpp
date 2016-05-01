@@ -115,15 +115,77 @@ void resetStroke(void) {
 }
 
 /********* INTERPOLATION ***************/
+void populateMeshVerts(){
 
-void calculateVerticesDriver(){
-	//loop through connected
-	for (int index = 0; index < connected.size(); index++){
-		//loop through the different degree values
-		for (int theta = 0; theta < 330; theta = theta + 30){
-			calculateVertices(index, (theta*(180/PI)));
+	int old_value = check_verts[0];
+	int last_valid = check_verts[check_verts.size() -1];
+	int X = 360/30;//this is the distance between the same index on different curve.
+
+	for (int index = 1; index < check_verts.size()-2; index++){
+		if (old_value == check_verts[index] && old_value == check_verts[index+1]){//normal case
+			if (check_verts[index] == last_valid)
+			{
+				Triangle tri = {index, index + 1, index - X};
+				mesh_verts.push_back(tri);
+			}else if (check_verts[index] == 0){
+				Triangle tri = {index, index + 1, index + 1 + X};
+				mesh_verts.push_back(tri);
+			}else{
+				Triangle tri = {index, index + 1, index - X};
+				mesh_verts.push_back(tri);
+
+				Triangle tri2 = {index, index + 1, index + 1 + X};
+				mesh_verts.push_back(tri2);
+			}
+		}else{///case where this is the last saved value. must match with zero degree on curve
+			old_value = check_verts[index+1];
+			if (check_verts[index] == last_valid)
+			{
+				Triangle tri = {index, index - X + 1, index - X};
+				mesh_verts.push_back(tri);
+			}else if (check_verts[index] == 0){
+				Triangle tri = {index, index - X + 1, index + 1 + X};
+				mesh_verts.push_back(tri);
+			}else{
+				Triangle tri = {index, index - X + 1, index - X};
+				mesh_verts.push_back(tri);
+
+				Triangle tri2 = {index, index - X + 1, index + 1 + X};
+				mesh_verts.push_back(tri2);
+			}
 		}
 	}
+	//second edge case
+	//takes care of beginning and end of shape
+	//to be moved into edge cases above
+	for (int index = 0; index < check_verts.size(); index++){
+		if (check_verts[index] == last_valid) {
+			Triangle tri = {index, index + 1, check_verts.size()};
+			mesh_verts.push_back(tri);
+		}else if (check_verts[index] == 0){
+			Triangle tri = {index, index + 1, 0};
+			mesh_verts.push_back(tri);
+		}else{
+
+		}
+	}
+
+}
+
+void calculateVerticesDriver(){
+    //loop through connected
+	for (int index = 0; index < connected.size(); index++){
+		//loop through the different degree values
+		for (float theta = 0; theta < 360; theta = theta + 30){
+			calculateVertices(index, ((theta*(PI/180))*(pow(-1, index))));//*(PI/180)
+			check_verts.push_back(index+1);
+		}
+	}
+
+	std::vector<Vector3f>::iterator it;
+	it = vertices_on_shape.begin();
+	vertices_on_shape.insert(it, points_on_curve[0]);
+	vertices_on_shape.push_back(last_in_shape);
 }
 
 // FIXME: This should accept 2 vertices by reference
@@ -145,23 +207,22 @@ Vector3f calculateMidpoint(int index){
     return (Vector3f(xm, ym, zm));
 }
 
-void calculateVertices(int index, float Theta) {
+void calculateVertices(int index, float theta) {
     int x, y, z, a, b, c, u, v, w;
     float newx, newy, newz;
-    float theta;
+    Vector3f A = *(connected[index].p1);
+    Vector3f B = *(connected[index].p2);
     Vector3f midpoint = calculateMidpoint(index);
+    Vector3f norm_dir = getNormal(A, B);
+
     x = connected[index].p1->x();
     y = connected[index].p1->y();
     z = connected[index].p1->z();
-    // x = connected[index].first.first;
-    // y = connected[index].first.second;
-    // z = 0;
+
     a = midpoint.x();
     b = midpoint.y();
     c = midpoint.z();
-    // a = midpoint.first;
-    // b = midpoint.second;
-    // c = 0;
+
     u = -a;
     v = b;
     w = 0;
@@ -170,19 +231,23 @@ void calculateVertices(int index, float Theta) {
 
     //calculates rotates x
     newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
-    newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*((-c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
+    //std::cout << newx << std::endl; //test code
+    newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*(-(c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
+    //std::cout << theta << std::endl; //test code
     newx = newx/L;
     //calculated rotated y
     newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
-    newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)+(a*w)-(w*y)+(u*z))*sin(theta));
+    newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)-(a*w)+(w*x)-(u*z))*sin(theta));
     newy = newy/L;
     //calculates rotated z
     newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
-    newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*((-b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
+    newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*(-(b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
     newz = newz/L;
 
     //push directly into the vector to save it.
     vertices_on_shape.push_back(Vector3f(newx, newy, newz));
+
+    std::cout << newx << ", " << newy << ", "<< newz << std::endl; //test code
 }
 
 
@@ -191,7 +256,7 @@ void calculateVertices(int index, float Theta) {
 void populateConnected(){
     if (points_on_curve.size() == 0) return;
 	//sets the original size to iterate over
-	go_back_for.push_back(0);
+	go_back_for.push_back(1);
 	go_back_for.push_back(points_on_curve.size()-1);
 
 	//iterates over the vector, populates the connected vector
@@ -220,7 +285,7 @@ void iterateThrough(int count_forward, int count_back){
 				go_back_for.push_back(count_forward + ret);
 				count_forward++;
 			}else{ */
-				count_forward ++;
+				count_forward++;
 				/* } */
 		}else{
 			is_for_or_back = 0;
@@ -235,10 +300,12 @@ void iterateThrough(int count_forward, int count_back){
 				go_back_for.push_back(count_back - ret);
 				count_back --;
 			}else{ */
-				count_back --;
+				count_back--;
 			/*  } */
 		}
 	}
+    last_in_shape = *(connected[connected.size()-1].p2);
+    connected.pop_back();
 }
 
 /* commented out incomplete code */
@@ -268,7 +335,7 @@ int checkPoints_CountForward(int index1, int index2){
 
 /* commented out incomplete code */
 int checkPoints_CountBack(int index1, int index2){
-	Vector3f a = points_on_curve[index1 +1];
+	Vector3f a = points_on_curve[index1 + 1];
 	Vector3f b = points_on_curve[index1];
 	Vector3f c = points_on_curve[index1 - 1];
 
@@ -367,12 +434,10 @@ void drawNewLine(Vector3f &a, Vector3f &b,
 
 Vector3f getNormal(Vector3f &a, Vector3f &b)
 {
-    // NOTE: This is not how you find the normal of 2 vectors
-	//int dx = b.first - a.first;
-	//int dy = b.second - a.second;
+    int dx = b.x() - a.x();
+    int dy = b.y() - a.y();
 
-    // NOTE: The cross product of two vectors gives you the normal.
-	return a.cross(b);
+    return Vector3f(-dy, dx, 0.0f);
 }
 
 void generateClosingPoints(vector<Vector3f> &points)
@@ -430,7 +495,7 @@ int findNextPoint(int i, int distance)
 
 		//if the angle isnt what we want, try again with a shorter distance
 		if (calcAngle(ba, bc, ac) > VERTEX_LIMIT) {
-            std::cout << "Angle: " << calcAngle(ba, bc, ac) << std::endl;
+            //std::cout << "Angle: " << calcAngle(ba, bc, ac) << std::endl;
 			return findNextPoint(i, (distance/2));
 
 		//if it is what we want, return this distance
@@ -565,10 +630,10 @@ void display(void)
         glPushMatrix();
         glMultMatrixf(m);
 
-        glPushMatrix();
-        glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
-        glutSolidTeapot(50.0);
-        glPopMatrix();
+        // glPushMatrix();
+        // glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
+        // glutSolidTeapot(50.0);
+        // glPopMatrix();
 
         glPointSize(3);
         glBegin(GL_POINTS);

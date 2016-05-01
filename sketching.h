@@ -63,6 +63,10 @@ static int imageWidth, imageHeight;     // window pixel dimensions
 static int previousX, previousY;        // previous (x,y) for stroke tracking
 static int display_triangles = 0;
 
+struct Triangle {
+    int vertex1, vertex2, vertex3;
+};
+
 struct Line {
     Vector3f *p1;
     Vector3f *p2;
@@ -81,6 +85,9 @@ vector<Line> connected; //list of connected vertices across drawing
 vector<Line>::iterator it2; //iterator for connected
 
 vector<Vector3f> vertices_on_shape;
+vector<int> check_verts;
+vector<Triangle> mesh_verts;
+Vector3f last_in_shape;
 
 static int recent;						//global variable used in calculating
 
@@ -123,6 +130,8 @@ void resetStroke(void);
 
 /*****************************************/
 /* INTERPOLATION *************************/
+
+void populateMeshVerts(void);
 
 /**
  * calculateVerticesDriver
