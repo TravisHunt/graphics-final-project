@@ -255,7 +255,7 @@ bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check);
  * Creates new line given that the given point is too far from the expected position
  * @return NONE
 */
-void drawNewLine(Vector3f &a, Vector3f &b, vector<Vector3f> &curve, int offset);
+//void drawNewLine(Vector3f &a, Vector3f &b, vector<Vector3f> &curve, int offset);
 //void drawNewLine(int index, int x);
 
 /**

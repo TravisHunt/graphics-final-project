@@ -107,6 +107,8 @@ void resetStroke(void) {
     connected.clear();
     go_back_for.clear();
 	vertices_on_shape.clear();
+    check_verts.clear();
+    mesh_verts.clear();
 	display_triangles = 0;
     tracking  = 0;
     previousX = 0;
@@ -390,6 +392,7 @@ bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check) {
 }
 
 //void drawNewLine(int index, int x){
+/*
 void drawNewLine(Vector3f &a, Vector3f &b,
     vector<Vector3f> &curve, int offset)
 {
@@ -431,6 +434,7 @@ void drawNewLine(Vector3f &a, Vector3f &b,
 	}
 
 }
+*/
 
 Vector3f getNormal(Vector3f &a, Vector3f &b)
 {
