@@ -186,8 +186,10 @@ void calculateVerticesDriver(){
 
 	std::vector<Vector3f>::iterator it;
 	it = vertices_on_shape.begin();
-	vertices_on_shape.insert(it, points_on_curve[0]);
-	vertices_on_shape.push_back(last_in_shape);
+    if (points_on_curve.size()) {
+        vertices_on_shape.insert(it, points_on_curve[0]);
+        vertices_on_shape.push_back(last_in_shape);
+    }
 }
 
 // FIXME: This should accept 2 vertices by reference
@@ -457,7 +459,7 @@ void generateClosingPoints(vector<Vector3f> &points)
     // Linearly interpolate points
     t = 0.0; delta = 1/(length/12);
     for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * a.x() + t * b.y();
+        cx = (1.0 - t) * a.x() + t * b.x();
         cy = (a.y() + (b.y() - a.y()) *
             ((cx - a.x()) / (b.x() - a.x())));
 
@@ -468,7 +470,7 @@ void generateClosingPoints(vector<Vector3f> &points)
 }
 
 float sideLength(Vector3f &a, Vector3f &b) {
-	return sqrt(pow((a.x() - b.y()), 2) + pow((a.y() - b.y()), 2));
+	return sqrt(pow((a.x() - b.x()), 2) + pow((a.y() - b.y()), 2));
 }
 
 float calcAngle(float BA, float BC, float AC) {
@@ -803,6 +805,9 @@ void keyboard(unsigned char key, int x, int y) {
         break;
     case 51: // '3' for 3D transition
         transition_3D();
+        break;
+    case 99: // 'c' to clear the stroke
+        resetStroke();
         break;
     case 108: // 'l' for lighting
         view.light = (view.light == ON) ? OFF : ON;
