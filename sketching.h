@@ -18,6 +18,7 @@
 #include "view.h"
 #include "trackball.h"
 #include "mesh.h"
+#include "objIO.h"
 
 using namespace Eigen;
 using std::vector;
@@ -37,7 +38,7 @@ using std::vector;
  * smaller numbers give smaller meshes
  * number cannot be a power of 2
  */
-static int DISTANCE_BETWEEN_POINTS = 30;
+static int DISTANCE_BETWEEN_POINTS = 6;
 /**
  * this constant gives the max acceptible angle between two points on the curve that is acceptable
  * smaller numbers give a more accurate mapping
@@ -53,6 +54,8 @@ static int DISTANCE_CONSTANT = 50;
 
 /********** GLOBAL VARIABLES ***************/
 const double PI = 3.141592653589793238462643383279502884197;
+const int mesh_rotation = 6;
+const int numCirclePts = 360 / mesh_rotation;
 
 View view;
 int menu_2Dview;
@@ -73,6 +76,10 @@ struct Line {
     : p1(&v1), p2(&v2) {}
 };
 
+struct Circle {
+    vector<GLuint> verts;
+};
+
 vector<Vector3f> stroke;          // stroke vertices
 vector<Vector3f> points_on_curve; // significant stroke vertices
 vector<Vector3f>::iterator it;    // vertex iterator
@@ -81,6 +88,7 @@ vector<int> go_back_for;				//list of points to redraw
 vector<Line> connected; //list of connected vertices across drawing
 vector<Line>::iterator it2; //iterator for connected
 
+vector<Circle> mesh_circles;
 vector<Vector3f> vertices_on_shape;
 vector<int> check_verts;
 vector<Triangle> mesh_verts;

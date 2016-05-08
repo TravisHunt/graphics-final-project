@@ -31,6 +31,8 @@ using Eigen::Vector3f;
 struct Triangle {
     GLuint vertex1, vertex2, vertex3;
 
+    Triangle(void)
+        :vertex1(0), vertex2(0), vertex3(0) {}
     Triangle(GLuint v1, GLuint v2, GLuint v3)
         :vertex1(v1), vertex2(v2), vertex3(v3) {}
 };
@@ -73,6 +75,8 @@ public:
     {
         Vector3f v0, v1, v2, u, v;
         GLuint i;
+        GLfloat weight = 1.0f;
+
         glBegin(GL_TRIANGLES);
         for (i = 0; i < tri_indices.size(); i++) {
             // Get triangle vertices
@@ -86,6 +90,11 @@ public:
             GLfloat nx = u.y() * v.z() - u.z() * v.y();
             GLfloat ny = u.z() * v.x() - u.x() * v.z();
             GLfloat nz = u.x() * v.y() - u.y() * v.x();
+
+            // Check if weight should be applied
+            if (sqrt(v0(0)*v0(0) + v0(1)*v0(1) + v0(2)*v0(2)) <= 1 ) {
+                v0 *= 200; v1 *= 200; v2 *= 200;
+            }
 
             glNormal3f(nx, ny, nz);
             glVertex3f(v0.x(), v0.y(), v0.z());

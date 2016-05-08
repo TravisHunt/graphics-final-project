@@ -6,6 +6,15 @@
 Trackball trackball;
 Mesh *test_mesh;
 
+float distance(Vector3f &a, Vector3f &b)
+{
+    float xx = pow((b.x() - a.x()), 2);
+    float yy = pow((b.y() - a.y()), 2);
+    float zz = pow((b.z() - a.z()), 2);
+
+    return (sqrt(xx + yy + zz));
+}
+
 int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE| GLUT_DEPTH);
@@ -38,40 +47,35 @@ void init(void) {
     glEnable(GL_DEPTH_TEST);
 
     vector<Vector3f> verts;
-    verts.push_back(Vector3f(0  ,  0,  0));
-    verts.push_back(Vector3f(100,  0,  0));
-    verts.push_back(Vector3f(50 ,100,  50));
-    verts.push_back(Vector3f(50 ,  0,  100));
+    vector<Triangle> faces;
 
-    vector<Triangle> tris;
-    tris.push_back(Triangle(0,3,2));
-    tris.push_back(Triangle(0,2,1));
-    tris.push_back(Triangle(0,3,1));
-    tris.push_back(Triangle(1,2,3));
-
-    test_mesh = new Mesh(verts, tris);
+    // FIXME: REMOVE THIS
+    GLchar fname[] = "ogre.obj";
+    //GLchar fname[] = "dodecahedron.obj";
+    loadObj(fname, verts, faces);
+    test_mesh = new Mesh(verts, faces);
 
     tracking  = 0;
     previousX = 0;
     previousY = 0;
 
-    view.setCOI(0, 0, 0); // set coi to origin
-    view.setEyePos(0, 0, -500); // camera position
+    //view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -500.0f, 500.0f);
+    view.setProjection(0.0f, 1000.0f, 0.0f, 1000.0f, -1000.0f, 1000.0f);
+
+    view.setCOI(0.0f, 0.0f, 0.0f); // set coi to origin
+    view.setEyePos(0.0f, 0.0f, view.near); // camera position
     view.setRGBA(VIEW_RGBA_2D);
 
     trackball.set_eye(view.eye);
     trackball.set_focus(view.coi);
     trackball.set_window_size(imageWidth, imageHeight);
 
-    //view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -500.0f, 500.0f);
-    view.setProjection(0.0f, 1000.0f, 0.0f, 1000.0f, -1000.0f, 1000.0f);
-
     view.light = OFF;
     view.setLightAmbient(0.0f, 0.0f, 0.0f, 1.0f);
     view.setLightDiffuse(1.0f, 1.0f, 1.0f, 1.0f);
     view.setLightSpecular(1.0f, 1.0f, 1.0f, 1.0f);
     //view.setLightPosition(imageWidth/2, imageHeight, 0.0f, 0.0f);
-    view.setLightPosition(2,5,5,0);
+    view.setLightPosition(0.0f, view.top, view.far, 0.0f);
     view.setLightRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 
     view.setMatAmbient(0.7f, 0.7f, 0.7f, 1.0f);
@@ -133,67 +137,70 @@ void resetStroke(void) {
 
 /********* INTERPOLATION ***************/
 void populateMeshVerts(){
+    if (mesh_circles.size() == 0 || vertices_on_shape.size() == 0)
+        return;
 
-	int old_value = check_verts[0];
-	int last_valid = check_verts[check_verts.size() -1];
-	int X = 360/30;//this is the distance between the same index on different curve.
+    GLuint i, j;
+    Circle c1, c2;
+    for (i = 0; i < mesh_circles.size()-1; i++) {
+        c1 = mesh_circles[i];
+        c2 = mesh_circles[i+1];
 
-	for (GLuint index = 1; index < check_verts.size()-2; index++){
-		if (old_value == check_verts[index] && old_value == check_verts[index+1]){//normal case
-			if (check_verts[index] == last_valid) {
-				mesh_verts.push_back(Triangle(index, index+1, index-X));
-			} else if (check_verts[index] == 0) {
-				mesh_verts.push_back(Triangle(index, index+1, index+1+X));
-			} else {
-				mesh_verts.push_back(Triangle(index, index+1, index-X));
-				mesh_verts.push_back(Triangle(index, index+1, index+1+X));
-			}
-		} else {///case where this is the last saved value. must match with zero degree on curve
-			old_value = check_verts[index+1];
-			if (check_verts[index] == last_valid) {
-				mesh_verts.push_back(Triangle(index, index-X+1, index-X));
-			} else if (check_verts[index] == 0) {
-				mesh_verts.push_back(Triangle(index, index-X+1, index+1+X));
-			} else {
-				mesh_verts.push_back(Triangle(index, index-X+1, index-X));
-				mesh_verts.push_back(Triangle(index, index-X+1, index+1+X));
-			}
-		}
-	}
-	//second edge case
-	//takes care of beginning and end of shape
-	//to be moved into edge cases above
-	for (GLuint index = 0; index < check_verts.size(); index++) {
-		if (check_verts[index] == last_valid) {
-			mesh_verts.push_back(Triangle(index, index+1, check_verts.size()));
-		} else if (check_verts[index] == 0) {
-			mesh_verts.push_back(Triangle(index, index+1, 0.0f));
-		}
-	}
+        for (j = 0; j < numCirclePts; j++) {
+            GLuint p0 = c1.verts[j];
+            GLuint p1 = c1.verts[(j+1) % numCirclePts];
+            GLuint p2 = c2.verts[j];
+            GLuint p3 = c2.verts[(j+1) % numCirclePts];
+
+            Triangle t0(p0, p3, p2);
+            Triangle t1(p0, p1, p3);
+
+            mesh_verts.push_back(t0);
+            mesh_verts.push_back(t1);
+        }
+    }
+
+    GLuint first = 0, last = vertices_on_shape.size()-1;
+    c1 = mesh_circles.front();
+    c2 = mesh_circles.back();
+    for (j = 0; j < numCirclePts; j++) {
+        GLuint p0 = c1.verts[j];
+        GLuint p1 = c1.verts[(j+1) % numCirclePts];
+        GLuint p2 = c2.verts[j];
+        GLuint p3 = c2.verts[(j+1) % numCirclePts];
+
+        Triangle t0(first, p1, p0);
+        Triangle t1(last , p3, p2);
+
+        mesh_verts.push_back(t0);
+        mesh_verts.push_back(t1);
+    }
 }
 
 void calculateVerticesDriver(){
-    //loop through connected
-	for (int index = 0; index < connected.size(); index++){
+    mesh_circles.clear();
+    // loop through connected
+	for (int index = 0; index < connected.size(); index = index+2) {
+        Circle c;
 		//loop through the different degree values
-		for (float theta = 0; theta < 360; theta = theta + 30){
-			calculateVertices(index, ((theta*(PI/180))*(pow(-1, index))));//*(PI/180)
-			check_verts.push_back(index+1);
+		for (float theta = 0; theta < 360; theta += mesh_rotation){
+			calculateVertices(index, ((theta*(PI/180))*(pow(-1, index))));
+            c.verts.push_back(vertices_on_shape.size());
 		}
+        mesh_circles.push_back(c);
 	}
 
-	std::vector<Vector3f>::iterator it;
-	it = vertices_on_shape.begin();
+	std::vector<Vector3f>::iterator v;
+	v = vertices_on_shape.begin();
     if (points_on_curve.size()) {
-        vertices_on_shape.insert(it, points_on_curve[0]);
+        vertices_on_shape.insert(v, points_on_curve[0]);
         vertices_on_shape.push_back(last_in_shape);
     }
 }
 
-// FIXME: This should accept 2 vertices by reference
 Vector3f calculateMidpoint(int index){
-    int x1, y1, x2, y2, z1, z2;
-    int xm, ym, zm;
+    float x1, y1, x2, y2, z1, z2;
+    float xm, ym, zm;
 
     x1 = connected[index].p1->x();
     x2 = connected[index].p2->x();
@@ -211,67 +218,46 @@ Vector3f calculateMidpoint(int index){
 
 void calculateVertices(int index, float theta) {
     float x, y, z, a, b, c, u, v, w;
-    float newx, newy, newz;
+    float newx=0, newy=0, newz=0;
     Vector3f A = *(connected[index].p1);
     Vector3f B = *(connected[index].p2);
     Vector3f midpoint = calculateMidpoint(index);
     Vector3f norm_dir = getNormal(A, B);
 
-    x = connected[index].p1->x();
-    y = connected[index].p1->y();
-    z = connected[index].p1->z();
+    x = A.x();
+    y = A.y();
+    z = A.z();
 
     a = midpoint.x();
     b = midpoint.y();
     c = midpoint.z();
 
-    u = norm_dir.x() - a;
-    v = norm_dir.y() - b;
-    w = norm_dir.z() - c;
+    Vector3f point(a, y, z);
+    float opposite = distance(A, point);
+    float hypo     = distance(A, midpoint);
+    float angle    = asin(opposite / hypo);
 
-    float deltaY = B.y() - A.y();
-	float deltaX = B.x() - A.x();
-
-	float r = sqrt(pow(x - a, 2) + pow(y - b, 2));
-	float angle = atan(deltaY/deltaX) * 180/PI;
+	float r = sqrt(pow(B.x() - a, 2) + pow(B.y() - b, 2));
 
 	//calculate circle points
-	newx = r *cos(theta);
-	newy = r *sin(theta);
+	newx = r * cos(theta);
+	newy = r * sin(theta);
 
 	//rotate around x axis
-	newy = newy*cos(PI/2) - newz*sin(PI/2);
-	newz = newy*sin(PI/2) + newz*cos(PI/2);
+    newz = newx;
+    float oldx = newx;
+    newx = 0.0f;
 
-	//rotate around y axis
-	newx = newx*cos(theta) + newz*sin(angle);
-	newz = -newx*sin(theta) + newz*cos(angle);
+	//rotate around z axis
+	newx = newx*cos(angle) - newy*sin(angle);
+	newy = newx*sin(angle) + newy*cos(angle);
 
-	//translate circle to place.
+	// //translate circle to place.
 	newx = newx+a;
 	newy = newy+b;
 
-    // int L = ((u*u)+(v*v)+(w*w));
-    //
-    // //calculates rotates x
-    // newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
-    // //std::cout << newx << std::endl; //test code
-    // newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*(-(c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
-    // //std::cout << theta << std::endl; //test code
-    // newx = newx/L;
-    // //calculated rotated y
-    // newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
-    // newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)-(a*w)+(w*x)-(u*z))*sin(theta));
-    // newy = newy/L;
-    // //calculates rotated z
-    // newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
-    // newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*(-(b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
-    // newz = newz/L;
-
     //push directly into the vector to save it.
     vertices_on_shape.push_back(Vector3f(newx, newy, newz));
-    //vertices_on_shape.push_back(midpoint);
-    std::cout << newx << ", " << newy << ", "<< newz << std::endl; //test code
 }
 
 
@@ -413,51 +399,6 @@ bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check) {
 	}
 }
 
-//void drawNewLine(int index, int x){
-/*
-void drawNewLine(Vector3f &a, Vector3f &b,
-    vector<Vector3f> &curve, int offset)
-{
-	GLfloat t, delta, cx, cy;
-	vector<Vector3f> partition;
-
-    // interpolate vertices from Endpoint to Startpoint
-    //Vector3f P0(stroke[index]);
-    //Vector3f P1(stroke[index + x]);
-    float length = sideLength(a, b);
-	//float length = sideLength(P0, P1);
-
-	delta = 1 / (length / 12);
-
-    // Linearly interpolate points
-    t = 0.0;
-    glBegin(GL_LINE_STRIP);
-    for (t = 0.0; t <= 1.0; t += delta) {
-        cx = (1.0 - t) * a(0) + t * b(0);
-        cy = (a(1) + (b(1) - a(1)) *
-            ((cx - a(0)) / (b(0) - a(0))));
-
-        // draw line between new point and last point
-        glVertex2f(cx, cy);
-        // add interpolated point to stroke
-        partition.push_back(Vector3f(cx, cy, 0));
-    }
-    glEnd();
-    // push closing line to screen
-    glFlush();
-
-	//vector<Vector3f>::iterator it;
-    vector<Vector3f>::const_iterator c;
-	c = curve.begin();
-	if (offset < 0) {
-		curve.insert(c + offset, partition.rbegin(), partition.rend());
-	} else {
-		curve.insert(c + offset, partition.begin(), partition.end());
-	}
-
-}
-*/
-
 Vector3f getNormal(Vector3f &a, Vector3f &b)
 {
     int dx = b.x() - a.x();
@@ -485,7 +426,6 @@ void generateClosingPoints(vector<Vector3f> &points)
 
         // add interpolated point to stroke
         points.push_back(Vector3f(cx, cy, 0));
-        //stroke.push_back(std::make_pair(cx, cy));
     }
 }
 
@@ -521,7 +461,6 @@ int findNextPoint(int i, int distance)
 
 		//if the angle isnt what we want, try again with a shorter distance
 		if (calcAngle(ba, bc, ac) > VERTEX_LIMIT) {
-            //std::cout << "Angle: " << calcAngle(ba, bc, ac) << std::endl;
 			return findNextPoint(i, (distance/2));
 
 		//if it is what we want, return this distance
@@ -538,7 +477,7 @@ void getOutsideEdges() {
 	//sets the counter variable
 	int count = 0;
 	//loop through each vertex in stroke
-	for (int i=0; i < stroke.size(); i = i+(count-i)) {
+	for (int i=0; i < stroke.size()-1; i = i+(count-i)) {
 		//find the next point for the curve
 		count = findNextPoint(i, DISTANCE_BETWEEN_POINTS);
 		//add to the vector
@@ -572,6 +511,7 @@ void transition_3D(void) {
     getOutsideEdges();
     populateConnected();
     calculateVerticesDriver();
+    populateMeshVerts();
 
     glutReshapeWindow(imageWidth, imageHeight);
     glutPostRedisplay();
@@ -619,6 +559,7 @@ void destroyGLUTMenus(void) {
 }
 
 int tmesh = 0;
+int test_mesh_pts = 0;
 /******** GLUT CALLBACKS **********/
 void display(void)
 {
@@ -645,6 +586,10 @@ void display(void)
     		glEnd();
     		glPointSize(5);
     		glBegin(GL_POINTS);
+            vector<Vector3f>::const_iterator v;
+            for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
+                glVertex2f(v->x(), v->y());
+            }
     		for (it = points_on_curve.begin(); it != points_on_curve.end(); it++){
     			glVertex2f(it->x(), it->y());
     		}
@@ -670,18 +615,19 @@ void display(void)
             glPopMatrix();
         }
 
-        // glPushMatrix();
-        // glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
-        // glutSolidTeapot(50.0f);
-        // glPopMatrix();
-
-        glPointSize(3);
-        glBegin(GL_POINTS);
-        vector<Vector3f>::const_iterator v;
-        for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
-            glVertex3f(v->x(), v->y(), v->z());
+        if (test_mesh_pts) {
+            glPointSize(3);
+            glBegin(GL_POINTS);
+            vector<Vector3f>::const_iterator v;
+            for (v = vertices_on_shape.begin(); v != vertices_on_shape.end(); v++) {
+                glVertex3f(v->x(), v->y(), v->z());
+            }
+            glEnd();
         }
-        glEnd();
+
+        Mesh object(vertices_on_shape, mesh_verts);
+        object.draw();
+
         glPopMatrix();
     }
 
@@ -843,6 +789,10 @@ void keyboard(unsigned char key, int x, int y) {
         break;
     case 109: // 'm' for mesh
         tmesh = tmesh ^ 1;
+        glutPostRedisplay();
+        break;
+    case 118: // 'v' for vertices on mesh
+        test_mesh_pts = test_mesh_pts ^ 1;
         glutPostRedisplay();
         break;
     }
