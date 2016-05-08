@@ -17,6 +17,7 @@
 #include <Eigen/Dense>
 #include "view.h"
 #include "trackball.h"
+#include "mesh.h"
 
 using namespace Eigen;
 using std::vector;
@@ -62,10 +63,6 @@ static int tracking;                    // state of stroke tracking
 static int imageWidth, imageHeight;     // window pixel dimensions
 static int previousX, previousY;        // previous (x,y) for stroke tracking
 static int display_triangles = 0;
-
-struct Triangle {
-    int vertex1, vertex2, vertex3;
-};
 
 struct Line {
     Vector3f *p1;

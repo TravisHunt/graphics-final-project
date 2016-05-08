@@ -4,6 +4,7 @@
 #define DEGREES(rad) (rad * (180 / PI))
 
 Trackball trackball;
+Mesh *test_mesh;
 
 int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
@@ -36,6 +37,20 @@ void init(void) {
     glShadeModel(GL_SMOOTH);
     glEnable(GL_DEPTH_TEST);
 
+    vector<Vector3f> verts;
+    verts.push_back(Vector3f(0  ,  0,  0));
+    verts.push_back(Vector3f(100,  0,  0));
+    verts.push_back(Vector3f(50 ,100,  50));
+    verts.push_back(Vector3f(50 ,  0,  100));
+
+    vector<Triangle> tris;
+    tris.push_back(Triangle(0,3,2));
+    tris.push_back(Triangle(0,2,1));
+    tris.push_back(Triangle(0,3,1));
+    tris.push_back(Triangle(1,2,3));
+
+    test_mesh = new Mesh(verts, tris);
+
     tracking  = 0;
     previousX = 0;
     previousY = 0;
@@ -48,15 +63,15 @@ void init(void) {
     trackball.set_focus(view.coi);
     trackball.set_window_size(imageWidth, imageHeight);
 
-    view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -500.0f, 500.0f);
+    //view.setProjection(0.0f, imageWidth, 0.0f, imageHeight, -500.0f, 500.0f);
+    view.setProjection(0.0f, 1000.0f, 0.0f, 1000.0f, -1000.0f, 1000.0f);
 
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    view.light = ON;
+    view.light = OFF;
     view.setLightAmbient(0.0f, 0.0f, 0.0f, 1.0f);
     view.setLightDiffuse(1.0f, 1.0f, 1.0f, 1.0f);
     view.setLightSpecular(1.0f, 1.0f, 1.0f, 1.0f);
-    view.setLightPosition(2.0f, 5.0f, 5.0f, 0.0f);
+    //view.setLightPosition(imageWidth/2, imageHeight, 0.0f, 0.0f);
+    view.setLightPosition(2,5,5,0);
     view.setLightRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 
     view.setMatAmbient(0.7f, 0.7f, 0.7f, 1.0f);
@@ -123,55 +138,38 @@ void populateMeshVerts(){
 	int last_valid = check_verts[check_verts.size() -1];
 	int X = 360/30;//this is the distance between the same index on different curve.
 
-	for (int index = 1; index < check_verts.size()-2; index++){
+	for (GLuint index = 1; index < check_verts.size()-2; index++){
 		if (old_value == check_verts[index] && old_value == check_verts[index+1]){//normal case
-			if (check_verts[index] == last_valid)
-			{
-				Triangle tri = {index, index + 1, index - X};
-				mesh_verts.push_back(tri);
-			}else if (check_verts[index] == 0){
-				Triangle tri = {index, index + 1, index + 1 + X};
-				mesh_verts.push_back(tri);
-			}else{
-				Triangle tri = {index, index + 1, index - X};
-				mesh_verts.push_back(tri);
-
-				Triangle tri2 = {index, index + 1, index + 1 + X};
-				mesh_verts.push_back(tri2);
+			if (check_verts[index] == last_valid) {
+				mesh_verts.push_back(Triangle(index, index+1, index-X));
+			} else if (check_verts[index] == 0) {
+				mesh_verts.push_back(Triangle(index, index+1, index+1+X));
+			} else {
+				mesh_verts.push_back(Triangle(index, index+1, index-X));
+				mesh_verts.push_back(Triangle(index, index+1, index+1+X));
 			}
-		}else{///case where this is the last saved value. must match with zero degree on curve
+		} else {///case where this is the last saved value. must match with zero degree on curve
 			old_value = check_verts[index+1];
-			if (check_verts[index] == last_valid)
-			{
-				Triangle tri = {index, index - X + 1, index - X};
-				mesh_verts.push_back(tri);
-			}else if (check_verts[index] == 0){
-				Triangle tri = {index, index - X + 1, index + 1 + X};
-				mesh_verts.push_back(tri);
-			}else{
-				Triangle tri = {index, index - X + 1, index - X};
-				mesh_verts.push_back(tri);
-
-				Triangle tri2 = {index, index - X + 1, index + 1 + X};
-				mesh_verts.push_back(tri2);
+			if (check_verts[index] == last_valid) {
+				mesh_verts.push_back(Triangle(index, index-X+1, index-X));
+			} else if (check_verts[index] == 0) {
+				mesh_verts.push_back(Triangle(index, index-X+1, index+1+X));
+			} else {
+				mesh_verts.push_back(Triangle(index, index-X+1, index-X));
+				mesh_verts.push_back(Triangle(index, index-X+1, index+1+X));
 			}
 		}
 	}
 	//second edge case
 	//takes care of beginning and end of shape
 	//to be moved into edge cases above
-	for (int index = 0; index < check_verts.size(); index++){
+	for (GLuint index = 0; index < check_verts.size(); index++) {
 		if (check_verts[index] == last_valid) {
-			Triangle tri = {index, index + 1, check_verts.size()};
-			mesh_verts.push_back(tri);
-		}else if (check_verts[index] == 0){
-			Triangle tri = {index, index + 1, 0};
-			mesh_verts.push_back(tri);
-		}else{
-
+			mesh_verts.push_back(Triangle(index, index+1, check_verts.size()));
+		} else if (check_verts[index] == 0) {
+			mesh_verts.push_back(Triangle(index, index+1, 0.0f));
 		}
 	}
-
 }
 
 void calculateVerticesDriver(){
@@ -212,7 +210,7 @@ Vector3f calculateMidpoint(int index){
 }
 
 void calculateVertices(int index, float theta) {
-    int x, y, z, a, b, c, u, v, w;
+    float x, y, z, a, b, c, u, v, w;
     float newx, newy, newz;
     Vector3f A = *(connected[index].p1);
     Vector3f B = *(connected[index].p2);
@@ -227,30 +225,52 @@ void calculateVertices(int index, float theta) {
     b = midpoint.y();
     c = midpoint.z();
 
-    u = -a;
-    v = b;
-    w = 0;
+    u = norm_dir.x() - a;
+    v = norm_dir.y() - b;
+    w = norm_dir.z() - c;
 
-    int L = ((u*u)+(v*v)+(w*w));
+    float deltaY = B.y() - A.y();
+	float deltaX = B.x() - A.x();
 
-    //calculates rotates x
-    newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
-    //std::cout << newx << std::endl; //test code
-    newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*(-(c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
-    //std::cout << theta << std::endl; //test code
-    newx = newx/L;
-    //calculated rotated y
-    newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
-    newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)-(a*w)+(w*x)-(u*z))*sin(theta));
-    newy = newy/L;
-    //calculates rotated z
-    newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
-    newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*(-(b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
-    newz = newz/L;
+	float r = sqrt(pow(x - a, 2) + pow(y - b, 2));
+	float angle = atan(deltaY/deltaX) * 180/PI;
+
+	//calculate circle points
+	newx = r *cos(theta);
+	newy = r *sin(theta);
+
+	//rotate around x axis
+	newy = newy*cos(PI/2) - newz*sin(PI/2);
+	newz = newy*sin(PI/2) + newz*cos(PI/2);
+
+	//rotate around y axis
+	newx = newx*cos(theta) + newz*sin(angle);
+	newz = -newx*sin(theta) + newz*cos(angle);
+
+	//translate circle to place.
+	newx = newx+a;
+	newy = newy+b;
+
+    // int L = ((u*u)+(v*v)+(w*w));
+    //
+    // //calculates rotates x
+    // newx = (a*((v*v)+(w*w))-(u*((b*v)+(c*w)-(u*x)-(v*y)-(w*z))));
+    // //std::cout << newx << std::endl; //test code
+    // newx = newx*(1-cos(theta))+(L*x*(cos(theta)))+((sqrt(L))*(-(c*v)+(b*w)-(w*y)+(v*z))*sin(theta));
+    // //std::cout << theta << std::endl; //test code
+    // newx = newx/L;
+    // //calculated rotated y
+    // newy = (b*((u*u)+(w*w))-(v*((a*u)+(c*w)-(u*x)-(v*y)-(w*z))));
+    // newy = newy*(1-cos(theta))+(L*y*(cos(theta)))+((sqrt(L))*((c*u)-(a*w)+(w*x)-(u*z))*sin(theta));
+    // newy = newy/L;
+    // //calculates rotated z
+    // newz = (c*((u*u)+(v*v))-(w*((a*u)+(b*v)-(u*x)-(v*y)-(w*z))));
+    // newz = newz*(1-cos(theta))+(L*z*(cos(theta)))+((sqrt(L))*(-(b*u)+(a*v)-(v*x)+(u*y))*sin(theta));
+    // newz = newz/L;
 
     //push directly into the vector to save it.
     vertices_on_shape.push_back(Vector3f(newx, newy, newz));
-
+    //vertices_on_shape.push_back(midpoint);
     std::cout << newx << ", " << newy << ", "<< newz << std::endl; //test code
 }
 
@@ -545,6 +565,7 @@ void transition_3D(void) {
 
     /* set new view data */
     view.type = PERSPECTIVE;
+    view.light = ON;
     view.setRGBA(VIEW_RGBA_3D);
 
     /* launch 3D mesh creation */
@@ -597,6 +618,7 @@ void destroyGLUTMenus(void) {
     glutDestroyMenu(menu_2Dview);
 }
 
+int tmesh = 0;
 /******** GLUT CALLBACKS **********/
 void display(void)
 {
@@ -636,9 +658,21 @@ void display(void)
         glPushMatrix();
         glMultMatrixf(m);
 
+        if (view.light == ON)
+            enableLighting();
+        else
+            disableLighting();
+
+        if (tmesh) {
+            glPushMatrix();
+            glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
+            test_mesh->draw();
+            glPopMatrix();
+        }
+
         // glPushMatrix();
         // glTranslatef(imageWidth/2, imageHeight/2, 0.0f);
-        // glutSolidTeapot(50.0);
+        // glutSolidTeapot(50.0f);
         // glPopMatrix();
 
         glPointSize(3);
@@ -649,12 +683,6 @@ void display(void)
         }
         glEnd();
         glPopMatrix();
-    }
-
-    if (view.light == ON) {
-        enableLighting();
-    } else {
-        disableLighting();
     }
 
     glDisable(GL_DEPTH_TEST);
@@ -811,6 +839,10 @@ void keyboard(unsigned char key, int x, int y) {
         break;
     case 108: // 'l' for lighting
         view.light = (view.light == ON) ? OFF : ON;
+        glutPostRedisplay();
+        break;
+    case 109: // 'm' for mesh
+        tmesh = tmesh ^ 1;
         glutPostRedisplay();
         break;
     }
