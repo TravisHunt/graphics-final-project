@@ -1,24 +1,29 @@
 # A Sketching Interface for 3D Freeform Design #
 Our final project for CMSC 435: An OpenGL implementation of [Teddy: A Sketching Interface for 3D Freeform Design](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/papers/siggraph99.pdf)
 
+***
+
 ## Getting Started ##
 The `Makefile` provided handles compilation tasks, and currently works on
 Linux and OSX (sorry Windows users). The `Makefile` comes with handy `run` and
 `clean` commands to avoid any confusion. To compile, run, and clean the program,
 simply perform the following:
-    $ make
-    $ make run
-    $ make clean
+
+* `$ make`
+* `$ make run`
+* `$ make clean`
+
 Refer to the [Makefile](Makefile) for further details.
 
 When the program loads, you will be presented with a light gray window. This is
 the __Drawing__ state, in which you may draw a 2D stroke. This has only been
-tested with mouse & trackpad drawing. _(refer to the [Keyboard & Mouse Input][] section)_
+tested with mouse & trackpad drawing. 
 ![Freeform Stroke](imgs/freeform.png)
 
 When you wish to generate the 3D model of your 2D shape, transition to the
-3D __Viewing__ state. _(refer to the [Keyboard & Mouse Input][] section)_
+3D __Viewing__ state.
 ![Viewing State](imgs/model.png)
+_(Please refer to the [Input section](#keyboard-&-mouse-input) below)_
 
 Our program depends on the [Eigen linear algebra library](http://eigen.tuxfamily.org/index.php?title=Main_Page),
 which is currently included in the `libs` directory within the main project
@@ -26,17 +31,21 @@ directory. The program's Makefile looks for additional libraries within the `lib
 directory, so be sure to place any additions libraries there. Of course, you
 aren't required to do this, but it keeps the project source uncluttered.
 
+***
+
 ## Keyboard & Mouse Input ##
 Our program currently requires the user to input specific keystrokes & mouse
 movement to trigger specific functionality.
 
-| Mouse Action            | Function                         |
+### Mouse Input ###
+| Action                  | Function                         |
 |-------------------------|----------------------------------|
 | `mouse_down+drag`       | (Drawing) Create Freeform Sketch |
 |                         | (Viewing) Rotate                 |
 | `shift+mouse_down+drag` | (Viewing) Pan                    |
 | `ctrl+mouse_down+drag`  | (Viewing) Zoom                   |
 
+### Keyboard Input ###
 | Key   | Function                                              |
 |-------|-------------------------------------------------------|
 | `esc` | Terminate the running program                         |
@@ -48,12 +57,14 @@ movement to trigger specific functionality.
 | `v`   | Toggle highlighted mesh vertices in the Viewing State |
 | `t`   | Toggle 2D Triangulation within the Drawing State      |
 
+***
+
 ## Known Issues ##
 ### UMBC GL Machine Support ###
 At some point during development, the functionality of rendering the 3D model
 on UMBC's GL machine was lost. Unfortunately, we're not sure why this issue
 occurs, and we have had no luck finding an answer. If you (the grader) run the
-program on the GL machine and have this issue, please [Contact Us][].
+program on the GL machine and have this issue, please [Contact Us](#contact-us).
 
 ### Triangulation ###
 Our math isn't perfect. The program, in its current state, is very fragile in
@@ -72,6 +83,7 @@ shining on the back of the model.
 The math behind the Trackball implementation isn't quite right, so the model
 rotation feels somewhat clunky, and the model can be panned off the screen.
 
+***
 
 ## Contact Us ##
 We are aware that this program isn't perfect. What is presented was built in
