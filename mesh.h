@@ -1,6 +1,7 @@
 /**
  * mesh.h
- *
+ * This file contains a Mesh class that handles the construction and rendering
+ * of a mesh given the vertex and triangle face data.
  */
 
 #ifndef _MESH_H_
@@ -28,6 +29,12 @@ using std::vector;
 using Eigen::Vector2f;
 using Eigen::Vector3f;
 
+/**
+ * triangle struct
+ * Datatype containing triangle face vertices. The struct contains 3
+ * integers, which are indices into the array containing all of the
+ * vertices within the mesh.
+ */
 struct Triangle {
     GLuint vertex1, vertex2, vertex3;
 
@@ -37,37 +44,28 @@ struct Triangle {
         :vertex1(v1), vertex2(v2), vertex3(v3) {}
 };
 
+/**
+ * vertex struct
+ * Datatype containing a mesh vertex position and surface normal vector.
+ */
 struct Vertex {
     Vector3f position;
     Vector3f normal;
-    Vector2f texCoords;
 };
 
-struct Texture {
-    GLuint id;
-    string type;
-    string path;
-};
-
-/**
- * Mesh
- */
 class Mesh
 {
 public:
     // Mesh Data
     vector<Vector3f> vertices;
     vector<Triangle> tri_indices;
-    vector<Texture> textures;
 
     // Constructors
     Mesh(void) {}
     Mesh(vector<Vector3f> &vertices, vector<Triangle> &indices)
-            //vector<Texture> &textures)
     {
         this->vertices    = vertices;
         this->tri_indices = indices;
-        //this->textures = textures;
     }
 
     // Render mesh
@@ -92,9 +90,14 @@ public:
             GLfloat nz = u.x() * v.y() - u.y() * v.x();
 
             // Check if weight should be applied
-            if (sqrt(v0(0)*v0(0) + v0(1)*v0(1) + v0(2)*v0(2)) <= 1 ) {
-                v0 *= 200; v1 *= 200; v2 *= 200;
-            }
+            GLfloat check = sqrt(v0(0)*v0(0) + v0(1)*v0(1) + v0(2)*v0(2));
+            if (check <= 1 )
+                weight = 200.0f;
+            else if (check <= 20)
+                weight = 50.0f;
+
+            // Apply weights
+            v0 *= weight; v1 *= weight; v2 *= weight;
 
             glNormal3f(nx, ny, nz);
             glVertex3f(v0.x(), v0.y(), v0.z());

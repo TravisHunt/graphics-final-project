@@ -1,10 +1,20 @@
+/**
+ * trackball.h
+ * This file contains the definition of the Trackball class, which is used
+ * to calculate the rotation, pan, dolly and zoom of the mesh model.
+ *
+ * This trackball implementation is a modified version of Prof. Jian Chen's
+ * ivTrackball class.
+ */
 #ifndef _TRACKBALL_H_
 #define _TRACKBALL_H_
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
 #else
 #include <GL/gl.h>
+#include <GL/glu.h>
 #endif
 
 #include <iostream>
@@ -13,7 +23,8 @@
 
 using namespace Eigen;
 
-class Trackball {
+class Trackball
+{
 public:
     /* Constructors */
     Trackball();
@@ -38,6 +49,9 @@ public:
 
     void set_matrix(const Matrix4f &m)
         { mouse_mat = m; }
+
+    void setIdentity(void)
+        { mouse_mat.setIdentity(); }
 
     void set_window_size(GLint w, GLint h)
         { window_width = w; window_height = h; }

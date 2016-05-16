@@ -1,3 +1,9 @@
+/**
+ * objIO.h
+ * This file contains functions to both read and write .obj files containing
+ * mesh vertex and face data.
+ */
+
 #ifndef _OBJ_IO_H_
 #define _OBJ_IO_H_
 

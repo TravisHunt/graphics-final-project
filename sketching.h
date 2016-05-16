@@ -1,3 +1,9 @@
+/**
+ * sketching.h
+ * This file contains the Sketching program's main functions the do the work
+ * necessary in generating the 3D model given a 2D freeform drawing.
+ */
+
 #ifndef _SKETCHING_H
 #define _SKETCHING_H
 
@@ -12,6 +18,7 @@
 #endif
 
 #include <iostream>
+#include <string>
 #include <cmath>
 #include <vector>
 #include <Eigen/Dense>
@@ -38,34 +45,32 @@ using std::vector;
  * smaller numbers give smaller meshes
  * number cannot be a power of 2
  */
-static int DISTANCE_BETWEEN_POINTS = 6;
+static GLint DISTANCE_BETWEEN_POINTS = 5;
 /**
  * this constant gives the max acceptible angle between two points on the curve that is acceptable
  * smaller numbers give a more accurate mapping
  */
-static float VERTEX_LIMIT = 1.0;
+static GLfloat VERTEX_LIMIT = 1.0;
 /**
  * this constant gives the max acceptible distance between a point across the shape and the normal
  * vector from the opposite side point
  * smaller numbers give a more accurate mapping, however shapes less likely to render correctly
  */
-static int DISTANCE_CONSTANT = 50;
+static GLint DISTANCE_CONSTANT = 50;
 /*******************************************/
 
 /********** GLOBAL VARIABLES ***************/
-const double PI = 3.141592653589793238462643383279502884197;
-const int mesh_rotation = 6;
-const int numCirclePts = 360 / mesh_rotation;
+const GLdouble PI = 3.141592653589793238462643383279502884197;
+const GLint mesh_rotation = 6;
+const GLint numCirclePts = 360 / mesh_rotation;
 
 View view;
-int menu_2Dview;
-int menu_3Dview;
-enum MenuOption { CLEAR, SWITCH_2D, SWITCH_3D, TRIANGULATE_2D };
 
-static int tracking;                    // state of stroke tracking
-static int imageWidth, imageHeight;     // window pixel dimensions
-static int previousX, previousY;        // previous (x,y) for stroke tracking
-static int display_triangles = 0;
+static GLint tracking;                    // state of stroke tracking
+static GLint imageWidth, imageHeight;     // window pixel dimensions
+static GLint previousX, previousY;        // previous (x,y) for stroke tracking
+static GLint display_triangles = 0;
+static GLint triangulated = 0;
 
 struct Line {
     Vector3f *p1;
@@ -80,21 +85,17 @@ struct Circle {
     vector<GLuint> verts;
 };
 
-vector<Vector3f> stroke;          // stroke vertices
-vector<Vector3f> points_on_curve; // significant stroke vertices
-vector<Vector3f>::iterator it;    // vertex iterator
-
-vector<int> go_back_for;				//list of points to redraw
-vector<Line> connected; //list of connected vertices across drawing
-vector<Line>::iterator it2; //iterator for connected
-
-vector<Circle> mesh_circles;
-vector<Vector3f> vertices_on_shape;
-vector<int> check_verts;
-vector<Triangle> mesh_verts;
+vector<Vector3f> stroke;            // stroke vertices
+vector<Vector3f> points_on_curve;   // significant stroke vertices
+vector<GLint> go_back_for;			// list of points to redraw
+vector<Line> connected;             // list of connected vertices
+vector<Circle> mesh_circles;        // interpolated 3D geometry
+vector<GLint> check_verts;          // indices of vertices to check
+vector<Vector3f> mesh_verts;        // mesh vertices
+vector<Triangle> mesh_faces;        // mesh faces
 Vector3f last_in_shape;
 
-static int recent;						//global variable used in calculating
+static GLint recent;		//global variable used in calculating
 
 /*********************************************/
 
@@ -104,6 +105,7 @@ static int recent;						//global variable used in calculating
 /* INITIALIZATION & HELPERS *************/
 /**
  * init
+ * Initialization function
  */
 void init(void);
 
@@ -119,7 +121,7 @@ void disableLighting(void);
  * Returns true if (x, y) is within the drawing window.
  * Returns false otherwise.
  */
-int inWindow(int x, int y);
+GLint inWindow(GLint x, GLint y);
 
 /**
  * wipeCanvas
@@ -136,7 +138,12 @@ void resetStroke(void);
 /*****************************************/
 /* INTERPOLATION *************************/
 
-void populateMeshVerts(void);
+/**
+ * populateMeshFaces
+ * Populates the mesh_faces vector with instances of Triangle, detailing
+ * which vertices form triangle faces on the mesh.
+ */
+void populateMeshFaces(void);
 
 /**
  * calculateVerticesDriver
@@ -148,21 +155,21 @@ void populateMeshVerts(void);
 
  /**
  * calculateMidpoint
- * @param int index - the index of the two points in connected
+ * @param GLint index - the index of the two points in connected
  * calculates the midpoint of two verices in connected
  * @return Vector3f - the midpoint of the two points at the given index
  */
- Vector3f calculateMidpoint(int index);
+ Vector3f calculateMidpoint(GLint index);
 
  /**
  * calculateVertices
- * @param int index - the index of the two vertices in connected
- * @param float theta - the degree to rotate the point around the midpoint by
+ * @param GLint index - the index of the two vertices in connected
+ * @param GLfloat theta - the degree to rotate the point around the midpoint by
  * Takes the point on the curve and rotates it around the midline in the shape to give a 3d representation of the shape
- * appends this vertex to the vector vertices_on_shape
+ * appends this vertex to the vector mesh_verts
  * @return NONE
  */
-void calculateVertices(int index, float Theta);
+void calculateVertices(GLint index, GLfloat Theta);
 
 /**
  * generateClosingPoints
@@ -178,25 +185,25 @@ void generateClosingPoints(vector<Vector3f> &points);
  * Takes pair a and pair b (2 points on line).
  * returns the distance between the points
  */
-float sideLength(Vector3f &a, Vector3f &b);
+GLfloat sideLength(Vector3f &a, Vector3f &b);
 
 /**
  * calcAngle
- * @param float BA, BC, AC - Distances between points A,B,C on a triangle
+ * @param GLfloat BA, BC, AC - Distances between points A,B,C on a triangle
  * Takes three lengths of a triangle and calculates the angle at one vertex.
- * @return float - Angle in degrees
+ * @return GLfloat - Angle in degrees
  */
-float calcAngle(float BA, float BC, float AC);
+GLfloat calcAngle(GLfloat BA, GLfloat BC, GLfloat AC);
 
 /**
  * findNextPoint
- * @param int i - Index of stroke vertex
- * @param int distance - distance to next stroke vertex
+ * @param GLint i - Index of stroke vertex
+ * @param GLint distance - distance to next stroke vertex
  * Uses a stroke vertex and the distance for the next point location
  * to find the next significant vertex in the stroke.
- * @return int - Index of next significant stroke vertex
+ * @return GLint - Index of next significant stroke vertex
  */
-int findNextPoint(int i, int distance);
+GLint findNextPoint(GLint i, GLint distance);
 
 /**
  * getOutsideEdges
@@ -216,113 +223,47 @@ void populateConnected();
 
 /**
  * iterateThrough
- * @param int count_forward - index in points_on_curve to count from
- * @param int count_back - index in points_on_curve to count backward from
+ * @param GLint count_forward - index in points_on_curve to count from
+ * @param GLint count_back - index in points_on_curve to count backward from
  * Iterates over points_on_curve from count forward to count backward
  * @return NONE
 */
-void iterateThrough(int count_forward, int count_back);
+void iterateThrough(GLint count_forward, GLint count_back);
 
 /**
  * checkPoints_CountForward
- * @param int index1 - the index from the front
- * @param int index2 - the index from the back
+ * @param GLint index1 - the index from the front
+ * @param GLint index2 - the index from the back
  * Finds if a point is within expected area, and if not, recurses until proper point is found
  * Checks from the forward position
  * @return NONE
 */
-int checkPoints_CountForward(int index1, int index2);
+GLint checkPoints_CountForward(GLint index1, GLint index2);
 
 /**
  * checkPoints_CountBack
- * @param int index1 - the index from the back
- * @param int index2 - the index from the front
+ * @param GLint index1 - the index from the back
+ * @param GLint index2 - the index from the front
  * Finds if a point is within expected area, and if not, recurses until proper point is found
  * Checks from the back position
- * @return int - 0 if not recursed, otherwise the number of indexes skipped
+ * @return GLint - 0 if not recursed, otherwise the number of indexes skipped
 */
-int checkPoints_CountBack(int index1, int index2);
-
-/**
- * isClose
- * @param Vector3f home, normal, point_to_check - the three points necessary to find the distance from the line (home, normal) the the point(point_to_check)
- *
- * Decides if a point is close to a give line. the line is from home point in the normal direction
- * decides if point is close by calculating the point's distance from the line
- * @return bool - true if the point is within DISTANCE_CONSTANT, false if not
-*/
-bool isClose(Vector3f &home, Vector3f &normal, Vector3f &point_to_check);
-
-/**
- * drawNewLine
- * @param index - The point in points_on_curve from which the line will be drawn
- * @param x - The distance(number of indexes) away the point the line is drawn to.
- * Creates new line given that the given point is too far from the expected position
- * @return NONE
-*/
-//void drawNewLine(Vector3f &a, Vector3f &b, vector<Vector3f> &curve, int offset);
-//void drawNewLine(int index, int x);
+GLint checkPoints_CountBack(GLint index1, GLint index2);
 
 /**
  * getNormal
  * @param pair a, b - Two vertices.
  * Calculates the normal direction given two points
- * @return pair<int, int> - The point in the direction of the normal vector
+ * @return pair<GLint, GLint> - The point in the direction of the normal vector
 */
 Vector3f getNormal(Vector3f &a, Vector3f &b);
 
-/******************************************/
-/* MENU HANDLING **************************/
-
-/**
- * createGLUTMenus
- * Initializes glut menus.
- */
-void createGLUTMenus(void);
-
-/**
- * handleMenuEvents
- * @param int option - Menu option identifier
- * Performs desired action when a menu option is selected.
- */
-void handleMenuEvents(int option);
-
-/**
- * destroyGLUTMenus
- * Frees resources allocated for glut menus.
- */
-void destroyGLUTMenus(void);
-
-
 /*****************************************/
 /* GLUT CALLBACK FUNCTIONS ***************/
-
-/**
- * display
- */
 void display(void);
-
-/**
- * reshape
- */
 void reshape(int w, int h);
-
-/**
- * mouse
- * Updates mouse tracking data when a stroke is being drawn.
- */
 void mouse(int button, int state, int x, int y);
-
-/**
- * mouseMotion
- * Tracks the user's mouse when drawing a stroke, pushes the current
- * vertex into the stroke vector, and draws the new line segment.
- */
 void mouseMotion(int x, int y);
-
-/**
-* keyboard
-*/
 void keyboard(unsigned char key, int x, int y);
 /*********************************************/
 
