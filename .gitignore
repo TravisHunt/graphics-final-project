@@ -1,6 +1,7 @@
 # Non source files #
 ####################
-documents/
+#documents/
+*.docx
 
 # Compiled source #
 ###################
